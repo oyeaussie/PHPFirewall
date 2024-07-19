@@ -1,0 +1,53 @@
+{
+    "name": "oyeaussie/phpfirewall",
+    "description": "PHPFirewall is a tool to allow/block connections to your application using IP address. The IP address details are either retrieved from local database (ip2location lite) or by making a call to IP2Location.io IP Geolocation API",
+    "keywords":
+    [
+        "php",
+        "terminal",
+        "firewall",
+        "ip filter",
+        "ip address filtering"
+    ],
+    "authors":
+    [
+        {
+            "name": "Oyeaussie",
+            "email": "email@oyeaussie.com",
+            "homepage": "https://github.com/oyeaussie/PHPFirewall"
+        }
+    ],
+    "funding":
+    [
+        {
+            "url": "https://github.com/sponsors/oyeaussie",
+            "type": "github"
+        },
+        {
+            "url": "https://buymeacoffee.com/oyeaussie",
+            "type": "other"
+        }
+    ],
+    "require":
+    {
+        "php": "^7.2.5 || ^8.0",
+        "ext-json": "*",
+        "phpterminal/phpterminal": "*",
+        "phpterminal/phpterminal-plugins-auth": "*",
+        "phpterminal/phpterminal-modules-firewall": "*",
+        "symfony/http-foundation" : "*"
+    },
+    "autoload":
+    {
+        "psr-4":
+        {
+            "PHPFirewall\\": "src/"
+        },
+        "files":
+        [
+            "src/Helpers.php"
+        ]
+    },
+    "minimum-stability": "stable",
+    "license": "MIT"
+}
