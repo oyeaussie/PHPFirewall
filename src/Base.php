@@ -75,12 +75,15 @@ abstract class Base
         if (!$this->config) {
             $this->config = $this->firewallConfigStore->updateOrInsert(
                 [
-                    '_id'                   => 1,
-                    'status'                => 'enabled',
-                    'filter_ipv4'           => true,
-                    'filter_ipv6'           => true,
-                    'allow_private_range'   => true,
-                    'default_filter'        => 'allow'
+                    '_id'                       => 1,
+                    'status'                    => 'enabled',
+                    'filter_ipv4'               => true,
+                    'filter_ipv6'               => true,
+                    'allow_private_range'       => true,
+                    'allow_reserved_range'      => true,
+                    'default_filter'            => 'allow',
+                    'auto_unblock_ip_minutes'   => false,
+                    'ip2location_api_key'       => null
                 ]
             );
         }
