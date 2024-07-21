@@ -27,9 +27,28 @@ class Firewall extends Base
 
     public function getFilters()
     {
-        $filters = $this->firewallFiltersStore->findAll(['filter_type' => 'desc']);
+        $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', null], ['filter_type' => 'desc']);
 
         if (count($filters) > 0) {
+            foreach ($filters as &$filter) {
+                if ($filter['address_type'] === 'host') {
+                    $filter['ip_hits'] = '-';
+                    continue;
+                }
+
+                $childs = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter['_id']]);
+
+                $filter['ip_hits'] = 0;
+
+                if ($childs) {
+                    $childs = count($childs);
+
+                    if ($childs > 0) {
+                        $filter['ip_hits'] = $childs;
+                    }
+                }
+            }
+
             $this->addResponse('Ok', 0, ['filters' => $filters]);
 
             return true;
@@ -57,19 +76,21 @@ class Firewall extends Base
         return false;
     }
 
-    public function getFilterByAddress($address, $checkIp = false)
+    public function getFilterByAddress($address, $getChildren = false)
     {
-        if ($checkIp) {
-            if (!$this->validateIP($address)) {
-                $this->addResponse('Please provide correct address', 1);
-
-                return false;
-            }
-        }
-
         $filter = $this->firewallFiltersStore->findBy(['address', '=', $address]);
 
         if (isset($filter[0])) {
+            if ($filter[0]['address_type'] !== 'host' &&
+                $getChildren
+            ) {
+                $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter[0]['_id']]);
+
+                if ($filters && count($filters) > 0) {
+                    $filter[0]['ips'] = $filters;
+                }
+            }
+
             $this->addResponse('Ok', 0, ['filter' => $filter[0]]);
 
             return $filter[0];
@@ -143,7 +164,7 @@ class Firewall extends Base
             (isset($data['address_type']) &&
              ($data['address_type'] !== 'host' &&
               $data['address_type'] !== 'network' &&
-              $data['address_type'] !== 'region')
+              $data['address_type'] !== 'ip2location')
             )
         ) {
             $this->addResponse('Please provide correct address type', 1);
@@ -172,11 +193,13 @@ class Firewall extends Base
 
                     return false;
                 }
-            } else if ($data['address_type'] === 'region') {
-                if (!$this->config['ip2locationAPI'] ||
-                    $this->config['ip2locationAPI'] === ''
+            } else if ($data['address_type'] === 'ip2location') {
+                if ((!$this->config['ip2location_api_key'] ||
+                     $this->config['ip2location_api_key'] === '') &&
+                    (!$this->config['ip2location_io_api_key'] ||
+                     $this->config['ip2location_io_api_key'] === '')
                 ) {
-                    $this->addResponse('Please set ip2location API key to add region', 1);
+                    $this->addResponse('Please set ip2location API key to add address type ip2location', 1);
 
                     return false;
                 }
@@ -305,11 +328,6 @@ class Firewall extends Base
         return true;
     }
 
-    public function resetFilters(array $data)
-    {
-        //
-    }
-
     public function checkIp($ip, $removeFromAutoMonitoring = false)
     {
         if (!$this->validateIP($ip)) {
@@ -334,8 +352,16 @@ class Firewall extends Base
 
         if ($filters && count($filters) > 0) {
             foreach ($filters as $filter) {
-                if (IpUtils::checkIp($ip, $filter['address'])) {
-                    return $this->checkIPFilter($filter, $ip);
+                if ($filter['address_type'] === 'network') {
+                    if (IpUtils::checkIp($ip, $filter['address'])) {
+                        return $this->checkIPFilter($filter, $ip);
+                    }
+                } else if ($filter['address_type'] === 'ip2location') {
+                    if (!$this->config['ip2location_io_api_key'] || $this->config['ip2location_io_api_key'] === '') {
+                        continue;
+                    } else {
+                        // $checkOnApi =
+                    }
                 }
             }
         }
@@ -371,6 +397,10 @@ class Firewall extends Base
             unset($newFilter['_id']);
 
             $filter = $this->firewallFiltersStore->insert($newFilter);
+        }
+
+        if (isset($filter['parent_id'])) {
+            $parentFilter = $this->getFilterById($filter['parent_id']);
         }
 
         $this->bumpFilterHitCounter($filter);

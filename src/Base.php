@@ -27,6 +27,8 @@ abstract class Base
 
     protected $firewallFiltersStore;
 
+    protected $firewallFiltersRegionStore;
+
     public function __construct($createRoot = false, $dataPath = null)
     {
         if (!$dataPath) {
@@ -70,6 +72,8 @@ abstract class Base
 
         $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
 
+        $this->firewallFiltersRegionStore = new Store("firewall_filters_region", $this->databaseDirectory, $this->storeConfiguration);
+
         $this->getConfig();
 
         if (!$this->config) {
@@ -84,7 +88,8 @@ abstract class Base
                     'default_filter'            => 'allow',
                     'default_filter_hit_count'  => 0,
                     'auto_unblock_ip_minutes'   => false,
-                    'ip2location_api_key'       => null
+                    'ip2location_api_key'       => null,
+                    'ip2location_io_api_key'    => null
                 ]
             );
         }
@@ -203,6 +208,21 @@ abstract class Base
         }
 
         return $this->updateConfig(['ip2location_api_key' => $key]);
+    }
+
+    public function setConfigIp2locationIoKey($key)
+    {
+        if ($key === '') {
+            $this->addResponse('Please provide correct key.', 1);
+
+            return false;
+        }
+
+        if ($key === 'null') {
+            $key = null;
+        }
+
+        return $this->updateConfig(['ip2location_io_api_key' => $key]);
     }
 
     public function updateConfig($config)
