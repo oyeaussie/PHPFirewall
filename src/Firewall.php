@@ -27,7 +27,7 @@ class Firewall extends Base
 
     public function getFilters()
     {
-        $filters = $this->firewallFiltersStore->findAll();
+        $filters = $this->firewallFiltersStore->findAll(['filter_type' => 'desc']);
 
         if (count($filters) > 0) {
             $this->addResponse('Ok', 0, ['filters' => $filters]);
@@ -60,7 +60,7 @@ class Firewall extends Base
     public function getFilterByAddress($address, $checkIp = false)
     {
         if ($checkIp) {
-            if (!$this->checkIP($address)) {
+            if (!$this->validateIP($address)) {
                 $this->addResponse('Please provide correct address', 1);
 
                 return false;
@@ -76,6 +76,36 @@ class Firewall extends Base
         }
 
         $this->addResponse('No filter found for the given address ' . $address, 1);
+
+        return false;
+    }
+
+    public function getFilterByAddressAndType($address, $type)
+    {
+        $filter = $this->firewallFiltersStore->findBy([['address', '=', $address], ['address_type', '=', $type]]);
+
+        if (isset($filter[0])) {
+            $this->addResponse('Ok', 0, ['filter' => $filter[0]]);
+
+            return $filter[0];
+        }
+
+        $this->addResponse('No filter found for the given address ' . $address, 1);
+
+        return false;
+    }
+
+    public function getFilterByType($type)
+    {
+        $filters = $this->firewallFiltersStore->findBy(['address_type', '=', $type], ['filter_type' => 'desc']);
+
+        if ($filters) {
+            $this->addResponse('Ok', 0, ['filters' => $filters]);
+
+            return $filters;
+        }
+
+        $this->addResponse('No filters found for the given type ' . $type, 1);
 
         return false;
     }
@@ -122,7 +152,7 @@ class Firewall extends Base
             if ($data['address_type'] === 'host' || $data['address_type'] === 'network') {
                 $address = explode('/', $data['address'])[0];
 
-                if (!$this->checkIP($address)) {
+                if (!$this->validateIP($address)) {
                     $this->addResponse('Please provide correct address', 1);
 
                     return false;
@@ -202,7 +232,7 @@ class Firewall extends Base
         return $this->firewallFiltersStore->deleteById($filter['_id']);
     }
 
-    protected function checkIP($address)
+    protected function validateIP($address)
     {
         $ipv6 = false;
         if (str_contains($address, ':')) {
@@ -257,19 +287,109 @@ class Firewall extends Base
         //
     }
 
-    public function checkFilter($ip)
+    public function checkIp($ip, $removeFromAutoMonitoring = false)
     {
+        if (!$this->validateIP($ip)) {
+            return false;
+        }
+
+        $this->getConfig();
+
+        if ($this->config['status'] === 'disable') {
+            $this->addResponse('Firewall is disabled. Everything is allowed!', 2);
+
+            return true;
+        }
+
+        $filter = $this->getFilterByAddressAndType($ip, 'host');
+
+        if ($filter) {//We find the address in address_type host
+            return $this->checkIPFilter($filter);
+        }
+
+        $filters = $this->getFilterByType('network');
+
+        if ($filters && count($filters) > 0) {
+            foreach ($filters as $filter) {
+                if (IpUtils::checkIp($ip, $filter['address'])) {
+                    return $this->checkIPFilter($filter);
+                }
+            }
+        }
+
+        $this->config['default_filter_hit_count'] = (int) $this->config['default_filter_hit_count'] + 1;
+
+        $this->updateConfig($this->config);
+
+        if ($this->config['default_filter'] === 'allow') {
+            $this->addResponse('Allowed by default firewall filter', 0);
+
+            return true;
+        } else if ($this->config['default_filter'] === 'block') {
+            $this->addResponse('Blocked by default firewall filter', 1);
+
+            return false;
+        }
 
         return true;
     }
 
-    public function bumpFilterHitCounter()
+    protected function checkIPFilter($filter)
     {
-        //
+        $this->bumpFilterHitCounter($filter);
+
+        if ($filter['filter_type'] === 'allow' ||
+            $filter['filter_type'] === 'monitor'
+        ) {
+            $status = 'Allowed';
+            $code = 0;
+
+            if ($filter['filter_type'] === 'monitor') {
+                //AutoUnblock - only host ip can be auto unblocked.
+                if ($filter['address_type'] === 'host' &&
+                    (int) $this->config['auto_unblock_ip_minutes'] > 0
+                ) {
+                    $blockedAt = Carbon::parse($filter['updated_at']);
+
+                    if (time() > $blockedAt->addMinutes((int) $this->config['auto_unblock_ip_minutes'])->timestamp) {
+                        $this->removeFromMonitoring($filter);
+                    } else {
+                        $status = 'Monitoring';
+                        $code = 2;
+                    }
+                } else {
+                    $status = 'Monitoring';
+                    $code = 2;
+                }
+            }
+
+            $this->addResponse($status, $code, ['filter' => $filter]);
+
+            return true;
+        }
+
+        if ($this->config['status'] === 'monitor') {
+            $this->addResponse('IP address is blocked, but firewall status is monitor so ip address is allowed!', 2, ['filter' => $filter]);
+
+            return true;
+        }
+
+        $this->addResponse('Blocked', 1, ['filter' => $filter]);
+
+        return false;
     }
 
-    public function removeFromMonitoring()
+    public function removeFromMonitoring($filter)
     {
-        //
+        $filter['filter_type'] = 'allow';
+
+        $this->firewallFiltersStore->update($filter);
+    }
+
+    protected function bumpFilterHitCounter($filter = null)
+    {
+        $filter['hit_count'] = (int) $filter['hit_count'] + 1;
+
+        $this->firewallFiltersStore->update($filter);
     }
 }

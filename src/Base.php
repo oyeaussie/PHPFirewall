@@ -82,6 +82,7 @@ abstract class Base
                     'allow_private_range'       => true,
                     'allow_reserved_range'      => true,
                     'default_filter'            => 'allow',
+                    'default_filter_hit_count'  => 0,
                     'auto_unblock_ip_minutes'   => false,
                     'ip2location_api_key'       => null
                 ]
@@ -173,6 +174,11 @@ abstract class Base
         }
 
         return $this->updateConfig(['default_filter' => $state]);
+    }
+
+    public function resetConfigDefaultFilterHitCount()
+    {
+        return $this->updateConfig(['default_filter_hit_count' => 0]);
     }
 
     public function setConfigAutoUnblockIpMinutes($minutes)
