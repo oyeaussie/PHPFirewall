@@ -70,13 +70,13 @@ abstract class Base
 
         $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
 
-        $this->config = $this->firewallConfigStore->findById(1);
+        $this->getConfig();
 
         if (!$this->config) {
             $this->config = $this->firewallConfigStore->updateOrInsert(
                 [
                     '_id'                       => 1,
-                    'status'                    => 'enabled',
+                    'status'                    => 'enable',//Enable/disable/monitor
                     'filter_ipv4'               => true,
                     'filter_ipv6'               => true,
                     'allow_private_range'       => true,
@@ -87,6 +87,123 @@ abstract class Base
                 ]
             );
         }
+    }
+
+    public function getConfig()
+    {
+        $this->config = $this->firewallConfigStore->findById(1);
+
+        return $this->config;
+    }
+
+    public function setConfigStatus($status)
+    {
+        $status = strtolower($status);
+
+        if ($status !== 'enable' &&
+            $status !== 'disable' &&
+            $status !== 'monitor'
+        ) {
+            $this->addResponse('Please provide correct status.', 1);
+
+            return false;
+        }
+
+        return $this->updateConfig(['status' => $status]);
+    }
+
+    public function setConfigFilter($type, $status)
+    {
+        $type = strtolower($type);
+        $status = strtolower($status);
+
+        if ($type !== 'v4' &&
+            $type !== 'v6'
+        ) {
+            $this->addResponse('Please provide correct type.', 1);
+
+            return false;
+        }
+
+        if ($status !== 'enable' &&
+            $status !== 'disable'
+        ) {
+            $this->addResponse('Please provide correct status.', 1);
+
+            return false;
+        }
+
+        return $this->updateConfig(['filter_ip' . $type => ($status === 'enable' ? true : false)]);
+    }
+
+    public function setConfigRange($type, $status)
+    {
+        $type = strtolower($type);
+        $status = strtolower($status);
+
+        if ($type !== 'private' &&
+            $type !== 'reserved'
+        ) {
+            $this->addResponse('Please provide correct range type.', 1);
+
+            return false;
+        }
+
+        if ($status !== 'enable' &&
+            $status !== 'disable'
+        ) {
+            $this->addResponse('Please provide correct status.', 1);
+
+            return false;
+        }
+
+        return $this->updateConfig(['allow_' . $type . '_range' => ($status === 'enable' ? true : false)]);
+    }
+
+    public function setConfigDefaultFilter($state)
+    {
+        $state = strtolower($state);
+
+        if ($state !== 'allow' &&
+            $state !== 'block'
+        ) {
+            $this->addResponse('Please provide correct default state.', 1);
+
+            return false;
+        }
+
+        return $this->updateConfig(['default_filter' => $state]);
+    }
+
+    public function setConfigAutoUnblockIpMinutes($minutes)
+    {
+        if ((int) $minutes === 0) {
+            $minutes = false;
+        }
+
+        return $this->updateConfig(['auto_unblock_ip_minutes' => $minutes]);
+    }
+
+    public function setConfigIp2locationKey($key)
+    {
+        if ($key === '') {
+            $this->addResponse('Please provide correct key.', 1);
+
+            return false;
+        }
+
+        if ($key === 'null') {
+            $key = null;
+        }
+
+        return $this->updateConfig(['ip2location_api_key' => $key]);
+    }
+
+    public function updateConfig($config)
+    {
+        $this->config = array_replace($this->config = $this->getConfig(), $config);
+
+        return $this->firewallConfigStore->update($this->config);
     }
 
     public function setLocalContent($createRoot = false, $dataPath = null)

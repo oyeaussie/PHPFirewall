@@ -16,6 +16,8 @@ class Firewall extends Base
 
     public function getFirewallConfig()
     {
+        $this->getConfig();
+
         unset($this->config['_id']);
 
         $this->addResponse('Ok', 0, $this->config);
@@ -255,7 +257,7 @@ class Firewall extends Base
         //
     }
 
-    public function checkList()
+    public function checkFilter($ip)
     {
 
         return true;
