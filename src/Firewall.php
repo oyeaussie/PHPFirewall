@@ -110,6 +110,21 @@ class Firewall extends Base
         return false;
     }
 
+    public function getFilterByParentId($id)
+    {
+        $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', $id]);
+
+        if ($filters) {
+            $this->addResponse('Ok', 0, ['filters' => $filters]);
+
+            return $filters;
+        }
+
+        $this->addResponse('No filters found for the given parent ' . $id, 1);
+
+        return false;
+    }
+
     public function addFilter(array $data)
     {
         if (!isset($data['filter_type']) ||
@@ -175,6 +190,8 @@ class Firewall extends Base
             $data['updated_at'] = time();
         }
 
+        $data['parent_id'] = null;
+
         return $this->firewallFiltersStore->insert($data);
     }
 
@@ -227,6 +244,12 @@ class Firewall extends Base
             $this->addResponse('Filter with ID ' . $data['id'] . ' does not exists', 1);
 
             return false;
+        }
+
+        $childFilters = $this->getFilterByParentId($filter['_id']);
+
+        if ($childFilters && count($childFilters) > 0) {//Remove all childs
+            $this->firewallFiltersStore->deleteBy(['parent_id', '=', $filter['_id']]);
         }
 
         return $this->firewallFiltersStore->deleteById($filter['_id']);
@@ -312,7 +335,7 @@ class Firewall extends Base
         if ($filters && count($filters) > 0) {
             foreach ($filters as $filter) {
                 if (IpUtils::checkIp($ip, $filter['address'])) {
-                    return $this->checkIPFilter($filter);
+                    return $this->checkIPFilter($filter, $ip);
                 }
             }
         }
@@ -334,8 +357,22 @@ class Firewall extends Base
         return true;
     }
 
-    protected function checkIPFilter($filter)
+    protected function checkIPFilter($filter, $ip = false)
     {
+        if ($ip) {//Add a new Host Filter
+            $parentFilter = $filter;
+
+            $newFilter = $filter;
+            $newFilter['address_type'] = 'host';
+            $newFilter['address'] = $ip;
+            $newFilter['hit_count'] = 0;
+            $newFilter['parent_id'] = $newFilter['_id'];
+            $newFilter['updated_at'] = time();
+            unset($newFilter['_id']);
+
+            $filter = $this->firewallFiltersStore->insert($newFilter);
+        }
+
         $this->bumpFilterHitCounter($filter);
 
         if ($filter['filter_type'] === 'allow' ||
@@ -346,9 +383,7 @@ class Firewall extends Base
 
             if ($filter['filter_type'] === 'monitor') {
                 //AutoUnblock - only host ip can be auto unblocked.
-                if ($filter['address_type'] === 'host' &&
-                    (int) $this->config['auto_unblock_ip_minutes'] > 0
-                ) {
+                if ((int) $this->config['auto_unblock_ip_minutes'] > 0) {
                     $blockedAt = Carbon::parse($filter['updated_at']);
 
                     if (time() > $blockedAt->addMinutes((int) $this->config['auto_unblock_ip_minutes'])->timestamp) {
@@ -363,15 +398,27 @@ class Firewall extends Base
                 }
             }
 
+            if (isset($parentFilter)) {
+                $filter['parent_filter'] = $parentFilter;
+            }
+
             $this->addResponse($status, $code, ['filter' => $filter]);
 
             return true;
         }
 
         if ($this->config['status'] === 'monitor') {
+            if (isset($parentFilter)) {
+                $filter['parent_filter'] = $parentFilter;
+            }
+
             $this->addResponse('IP address is blocked, but firewall status is monitor so ip address is allowed!', 2, ['filter' => $filter]);
 
             return true;
+        }
+
+        if (isset($parentFilter)) {
+            $filter['parent_filter'] = $parentFilter;
         }
 
         $this->addResponse('Blocked', 1, ['filter' => $filter]);
@@ -391,5 +438,15 @@ class Firewall extends Base
         $filter['hit_count'] = (int) $filter['hit_count'] + 1;
 
         $this->firewallFiltersStore->update($filter);
+
+        if (isset($filter['parent_id'])) {
+            $filter = $this->getFilterById($filter['parent_id']);
+
+            if ($filter) {
+                $filter['hit_count'] = (int) $filter['hit_count'] + 1;
+
+                $this->firewallFiltersStore->update($filter);
+            }
+        }
     }
 }
