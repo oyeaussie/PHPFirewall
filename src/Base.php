@@ -45,7 +45,7 @@ abstract class Base
             [
                 'debug'           => false,
                 'http_errors'     => true,
-                'timeout'         => 10,
+                'timeout'         => 2,
                 'verify'          => false
             ]
         );

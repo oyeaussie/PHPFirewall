@@ -349,18 +349,61 @@ class Firewall extends Base
         }
 
         $filters = $this->getFilterByType('network');
-
         if ($filters && count($filters) > 0) {
-            foreach ($filters as $filter) {
-                if ($filter['address_type'] === 'network') {
-                    if (IpUtils::checkIp($ip, $filter['address'])) {
-                        return $this->checkIPFilter($filter, $ip);
+            foreach ($filters as $filterKey => $filter) {
+                if (IpUtils::checkIp($ip, $filter['address'])) {
+                    return $this->checkIPFilter($filter, $ip);
+                }
+            }
+        }
+
+        if (isset($this->config['ip2location_io_api_key']) &&
+            $this->config['ip2location_io_api_key'] !== ''
+        ) {
+            $ip2locationFilters = [];
+
+            $filters = $this->getFilterByType('ip2location');
+
+            if ($filters && count($filters) > 0) {
+                foreach ($filters as $filterKey => $filter) {
+                    $ip2locationAddressArr = explode(':', $filter['address']);
+
+                    if (count($ip2locationAddressArr) === 1) {
+                        $ip2locationFilters[$ip2locationAddressArr[0]] = $filter['_id'];
+                    } else if (count($ip2locationAddressArr) === 2) {
+                        $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]] = $filter['_id'];
+                    } else if (count($ip2locationAddressArr) === 3) {
+                        $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]][$ip2locationAddressArr[2]] = $filter['_id'];
                     }
-                } else if ($filter['address_type'] === 'ip2location') {
-                    if (!$this->config['ip2location_io_api_key'] || $this->config['ip2location_io_api_key'] === '') {
-                        continue;
-                    } else {
-                        // $checkOnApi =
+                }
+            }
+
+            if (count($ip2locationFilters) > 0) {
+                $apiCallResponse = $this->remoteWebContent->get('https://api.ip2location.io/?key=' . $this->config['ip2location_io_api_key'] . '&ip=' . $ip);
+
+                if ($apiCallResponse && $apiCallResponse->getStatusCode() === 200) {
+                    $response = $apiCallResponse->getBody()->getContents();
+
+                    try {
+                        $response = json_decode($response, true);
+
+                        $filterRule = null;
+
+                        if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])])) {
+                            $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])];
+                        } else if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])])) {
+                            $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])];
+                        } else if (isset($ip2locationFilters[strtolower($response['country_code'])])) {
+                            $filterRule = $ip2locationFilters[strtolower($response['country_code'])];
+                        }
+
+                        if ($filterRule) {
+                            $filter = $this->getFilterById($filterRule);
+
+                            return $this->checkIPFilter($filter, $ip);
+                        }
+                    } catch (\throwable $e) {
+                        var_dump($e);
                     }
                 }
             }
