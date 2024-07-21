@@ -379,12 +379,12 @@ class Firewall extends Base
             }
 
             if (count($ip2locationFilters) > 0) {
-                $apiCallResponse = $this->remoteWebContent->get('https://api.ip2location.io/?key=' . $this->config['ip2location_io_api_key'] . '&ip=' . $ip);
+                try {
+                    $apiCallResponse = $this->remoteWebContent->get('https://api.ip2location.io/?key=' . $this->config['ip2location_io_api_key'] . '&ip=' . $ip);
 
-                if ($apiCallResponse && $apiCallResponse->getStatusCode() === 200) {
-                    $response = $apiCallResponse->getBody()->getContents();
+                    if ($apiCallResponse && $apiCallResponse->getStatusCode() === 200) {
+                        $response = $apiCallResponse->getBody()->getContents();
 
-                    try {
                         $response = json_decode($response, true);
 
                         $filterRule = null;
@@ -402,9 +402,11 @@ class Firewall extends Base
 
                             return $this->checkIPFilter($filter, $ip);
                         }
-                    } catch (\throwable $e) {
-                        var_dump($e);
                     }
+                } catch (\throwable $e) {
+                    $this->addResponse($e->getMessage(), 1);
+
+                    return false;
                 }
             }
         }
