@@ -30,7 +30,51 @@ class Firewall extends Base
         if ($defaultStore) {
             $filters = $this->firewallFiltersDefaultStore->findAll();
         } else {
-            $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', null], ['filter_type' => 'desc']);
+            $filters = [];
+
+            $hosts = $this->getFilterByType('host');
+            if ($hosts && count($hosts) > 0) {
+                $filters = array_merge($filters, $hosts);
+            }
+
+            $networks = $this->getFilterByType('network');
+            if ($networks && count($networks) > 0) {
+                $filters = array_merge($filters, $networks ?? []);
+            }
+
+            $ip2locationArr = $this->getFilterByType('ip2location');
+
+            if ($ip2locationArr && count($ip2locationArr) > 0) {
+                $ip2locationSortArr = [];
+
+                foreach ($ip2locationArr as $ip2location) {
+                    $ip2locationAddressArr = explode(':', $ip2location['address']);
+                    if (count($ip2locationAddressArr) === 3) {
+                        if (!isset($ip2locationSortArr[0])) {
+                            $ip2locationSortArr[0] = [];
+                        }
+                        array_push($ip2locationSortArr[0], $ip2location);
+                    } else if (count($ip2locationAddressArr) === 2) {
+                        if (!isset($ip2locationSortArr[1])) {
+                            $ip2locationSortArr[1] = [];
+                        }
+                        array_push($ip2locationSortArr[1], $ip2location);
+                    } else if (count($ip2locationAddressArr) === 1) {
+                        if (!isset($ip2locationSortArr[2])) {
+                            $ip2locationSortArr[2] = [];
+                        }
+                        array_push($ip2locationSortArr[2], $ip2location);
+                    }
+                }
+
+                if (count($ip2locationSortArr) > 0) {
+                    ksort($ip2locationSortArr);
+
+                    foreach ($ip2locationSortArr as $ip2locationSortKey => $ip2locationSort) {
+                        $filters = array_merge($filters, $ip2locationSortArr[$ip2locationSortKey]);
+                    }
+                }
+            }
         }
 
         if (count($filters) > 0) {
@@ -147,12 +191,17 @@ class Firewall extends Base
         return false;
     }
 
-    public function getFilterByType($type, $defaultStore = false)
+    public function getFilterByType($type, $defaultStore = false, $children = false)
     {
+        $searchConditions = [['address_type', '=', $type]];
+        if (!$children) {
+            array_push($searchConditions, ['parent_id', '=', null]);
+        }
+
         if ($defaultStore) {
-            $filters = $this->firewallFiltersDefaultStore->findBy(['address_type', '=', $type], ['filter_type' => 'desc']);
+            $filters = $this->firewallFiltersDefaultStore->findBy($searchConditions, ['filter_type' => 'desc']);
         } else {
-            $filters = $this->firewallFiltersStore->findBy(['address_type', '=', $type], ['filter_type' => 'desc']);
+            $filters = $this->firewallFiltersStore->findBy($searchConditions, ['filter_type' => 'desc']);
         }
 
         if ($filters) {
@@ -310,6 +359,9 @@ class Firewall extends Base
             if ($childFilters && count($childFilters) > 0) {//Remove all childs
                 $this->firewallFiltersStore->deleteBy(['parent_id', '=', (int) $filter['id']]);
             }
+
+            //Remove all ip2location database for the filter
+            $ip2locationEntries = $this->firewallFiltersIp2locationStore->deleteBy(['filter_id', '=', (int) $filter['id']]);
         }
 
         if ($defaultStore) {
@@ -440,17 +492,14 @@ class Firewall extends Base
                     if ($filterRule) {
                         $filter = $this->getFilterById($filterRule);
 
+                        $response['filter_id'] = $filterRule;
+
+                        $this->firewallFiltersIp2locationStore->insert($response);
+
                         return $this->checkIPFilter($filter, $ip);
                     }
                 }
             }
-        }
-
-        //We check HOST entries in default
-        $filter = $this->getFilterByAddressAndType($ip, 'host', true);
-
-        if ($filter) {//We find the address in address_type host
-            return $this->checkIPFilter($filter);
         }
 
         //Forth - We check DEFAULT entries
@@ -507,6 +556,14 @@ class Firewall extends Base
             }
         }
 
+        $firewallFiltersIp2locationStoreEntry = $this->firewallFiltersIp2locationStore->findBy(['ip', '=', $ip]);
+
+        if ($firewallFiltersIp2locationStoreEntry && isset($firewallFiltersIp2locationStoreEntry[0])) {
+            $this->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $firewallFiltersIp2locationStoreEntry[0]]);
+
+            return $firewallFiltersIp2locationStoreEntry[0];
+        }
+
         if (isset($this->config['ip2location_io_api_key']) &&
             $this->config['ip2location_io_api_key'] !== ''
         ) {
@@ -536,14 +593,15 @@ class Firewall extends Base
 
     protected function checkIPFilter($filter, $ip = false)
     {
-        //Check if IP is in default store and remove it
-        $inDefaultFilter = $this->getFilterByAddress($ip, false, true);
-        if ($inDefaultFilter) {
-            $this->removeFilter($inDefaultFilter['id'], true);
-        }
+        if ($ip) {//Check if IP is in default store and remove it
+            $inDefaultFilter = $this->getFilterByAddress($ip, false, true);
+            if ($inDefaultFilter) {
+                $this->removeFilter($inDefaultFilter['id'], true);
+            }
 
-        if ($filter['address_type'] === 'host') {
-            $ip = false;
+            if ($filter['address_type'] === 'host') {
+                $ip = false;
+            }
         }
 
         if ($ip) {//Add a new Host Filter
