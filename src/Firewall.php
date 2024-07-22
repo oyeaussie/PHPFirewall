@@ -375,7 +375,7 @@ class Firewall extends Base
         $filter = $this->getFilterByAddressAndType($ip, 'host');
 
         if ($filter) {//We find the address in address_type host
-            return $this->checkIPFilter($filter);
+            return $this->checkIPFilter($filter, $ip);
         }
 
         //Second Check - We check NETWORK entries
@@ -411,36 +411,33 @@ class Firewall extends Base
             }
 
             if (count($ip2locationFilters) > 0) {
-                try {
-                    $apiCallResponse = $this->remoteWebContent->get('https://api.ip2location.io/?key=' . $this->config['ip2location_io_api_key'] . '&ip=' . $ip);
+                $response = $this->getIpDetailsFromIp2locationAPI($ip);
 
-                    if ($apiCallResponse && $apiCallResponse->getStatusCode() === 200) {
-                        $response = $apiCallResponse->getBody()->getContents();
+                if ($response) {
+                    $filterRule = null;
 
-                        $response = json_decode($response, true);
-
-                        $filterRule = null;
-
-                        if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])])) {
-                            $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])];
-                        } else if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])])) {
-                            $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])];
-                        } else if (isset($ip2locationFilters[strtolower($response['country_code'])])) {
-                            $filterRule = $ip2locationFilters[strtolower($response['country_code'])];
-                        }
-
-                        if ($filterRule) {
-                            $filter = $this->getFilterById($filterRule);
-
-                            return $this->checkIPFilter($filter, $ip);
-                        }
+                    if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])])) {
+                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])];
+                    } else if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])])) {
+                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])];
+                    } else if (isset($ip2locationFilters[strtolower($response['country_code'])])) {
+                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])];
                     }
-                } catch (\throwable $e) {
-                    $this->addResponse($e->getMessage(), 1);
 
-                    return false;
+                    if ($filterRule) {
+                        $filter = $this->getFilterById($filterRule);
+
+                        return $this->checkIPFilter($filter, $ip);
+                    }
                 }
             }
+        }
+
+        //We check HOST entries in default
+        $filter = $this->getFilterByAddressAndType($ip, 'host', true);
+
+        if ($filter) {//We find the address in address_type host
+            return $this->checkIPFilter($filter);
         }
 
         //Forth - We check DEFAULT entries
@@ -476,8 +473,47 @@ class Firewall extends Base
         return true;
     }
 
+    public function getIpDetailsFromIp2locationAPI($ip)
+    {
+        if (isset($this->config['ip2location_io_api_key']) &&
+            $this->config['ip2location_io_api_key'] !== ''
+        ) {
+            try {
+                $apiCallResponse = $this->remoteWebContent->get('https://api.ip2location.io/?key=' . $this->config['ip2location_io_api_key'] . '&ip=' . $ip);
+
+                if ($apiCallResponse && $apiCallResponse->getStatusCode() === 200) {
+                    $response = $apiCallResponse->getBody()->getContents();
+
+                    $response = json_decode($response, true);
+
+                    $this->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $response]);
+
+                    return $response;
+                } else {
+                    throw new \Exception('Lookup failed because of code : ' . $apiCallResponse->getStatusCode());
+                }
+
+                return false;
+            } catch (\throwable $e) {
+                throw $e;
+            }
+        }
+
+        return false;
+    }
+
     protected function checkIPFilter($filter, $ip = false)
     {
+        //Check if IP is in default store and remove it
+        $inDefaultFilter = $this->getFilterByAddress($ip, false, true);
+        if ($inDefaultFilter) {
+            $this->removeFilter($inDefaultFilter['_id'], true);
+        }
+
+        if ($filter['address_type'] === 'host') {
+            $ip = false;
+        }
+
         if ($ip) {//Add a new Host Filter
             $parentFilter = $filter;
 
