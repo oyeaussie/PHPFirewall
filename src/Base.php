@@ -27,7 +27,9 @@ abstract class Base
 
     protected $firewallFiltersStore;
 
-    protected $firewallFiltersRegionStore;
+    protected $firewallFiltersDefaultStore;
+
+    protected $firewallFiltersIp2locationStore;
 
     public function __construct($createRoot = false, $dataPath = null)
     {
@@ -72,7 +74,9 @@ abstract class Base
 
         $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
 
-        $this->firewallFiltersRegionStore = new Store("firewall_filters_region", $this->databaseDirectory, $this->storeConfiguration);
+        $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
+
+        $this->firewallFiltersIp2locationStore = new Store("firewall_filters_ip2Location", $this->databaseDirectory, $this->storeConfiguration);
 
         $this->getConfig();
 

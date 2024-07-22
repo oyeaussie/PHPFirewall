@@ -25,26 +25,32 @@ class Firewall extends Base
         return (array) $this->response;
     }
 
-    public function getFilters()
+    public function getFilters($defaultStore = false)
     {
-        $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', null], ['filter_type' => 'desc']);
+        if ($defaultStore) {
+            $filters = $this->firewallFiltersDefaultStore->findAll();
+        } else {
+            $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', null], ['filter_type' => 'desc']);
+        }
 
         if (count($filters) > 0) {
-            foreach ($filters as &$filter) {
-                if ($filter['address_type'] === 'host') {
-                    $filter['ip_hits'] = '-';
-                    continue;
-                }
+            if (!$defaultStore) {
+                foreach ($filters as &$filter) {
+                    if ($filter['address_type'] === 'host') {
+                        $filter['ip_hits'] = '-';
+                        continue;
+                    }
 
-                $childs = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter['_id']]);
+                    $childs = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter['_id']]);
 
-                $filter['ip_hits'] = 0;
+                    $filter['ip_hits'] = 0;
 
-                if ($childs) {
-                    $childs = count($childs);
+                    if ($childs) {
+                        $childs = count($childs);
 
-                    if ($childs > 0) {
-                        $filter['ip_hits'] = $childs;
+                        if ($childs > 0) {
+                            $filter['ip_hits'] = $childs;
+                        }
                     }
                 }
             }
@@ -63,9 +69,13 @@ class Firewall extends Base
         return false;
     }
 
-    public function getFilterById($id)
+    public function getFilterById($id, $defaultStore = false)
     {
-        $filter = $this->firewallFiltersStore->findById($id);
+        if ($defaultStore) {
+            $filter = $this->firewallFiltersDefaultStore->findById($id);
+        } else {
+            $filter = $this->firewallFiltersStore->findById($id);
+        }
 
         if ($filter) {
             $this->addResponse('Ok', 0, ['filter' => $filter]);
@@ -76,9 +86,14 @@ class Firewall extends Base
         return false;
     }
 
-    public function getFilterByAddress($address, $getChildren = false)
+    public function getFilterByAddress($address, $getChildren = false, $defaultStore = false)
     {
-        $filter = $this->firewallFiltersStore->findBy(['address', '=', $address]);
+        if ($defaultStore) {
+            $filter = $this->firewallFiltersDefaultStore->findBy(['address', '=', $address]);
+            $getChildren = false;
+        } else {
+            $filter = $this->firewallFiltersStore->findBy(['address', '=', $address]);
+        }
 
         if (isset($filter[0])) {
             if ($filter[0]['address_type'] !== 'host' &&
@@ -101,9 +116,13 @@ class Firewall extends Base
         return false;
     }
 
-    public function getFilterByAddressAndType($address, $type)
+    public function getFilterByAddressAndType($address, $type, $defaultStore = false)
     {
-        $filter = $this->firewallFiltersStore->findBy([['address', '=', $address], ['address_type', '=', $type]]);
+        if ($defaultStore) {
+            $filter = $this->firewallFiltersDefaultStore->findBy([['address', '=', $address], ['address_type', '=', $type]]);
+        } else {
+            $filter = $this->firewallFiltersStore->findBy([['address', '=', $address], ['address_type', '=', $type]]);
+        }
 
         if (isset($filter[0])) {
             $this->addResponse('Ok', 0, ['filter' => $filter[0]]);
@@ -116,9 +135,13 @@ class Firewall extends Base
         return false;
     }
 
-    public function getFilterByType($type)
+    public function getFilterByType($type, $defaultStore = false)
     {
-        $filters = $this->firewallFiltersStore->findBy(['address_type', '=', $type], ['filter_type' => 'desc']);
+        if ($defaultStore) {
+            $filters = $this->firewallFiltersDefaultStore->findBy(['address_type', '=', $type], ['filter_type' => 'desc']);
+        } else {
+            $filters = $this->firewallFiltersStore->findBy(['address_type', '=', $type], ['filter_type' => 'desc']);
+        }
 
         if ($filters) {
             $this->addResponse('Ok', 0, ['filters' => $filters]);
@@ -146,7 +169,7 @@ class Firewall extends Base
         return false;
     }
 
-    public function addFilter(array $data)
+    public function addFilter(array $data, $defaultStore = false)
     {
         if (!isset($data['filter_type']) ||
             (isset($data['filter_type']) &&
@@ -213,9 +236,15 @@ class Firewall extends Base
             $data['updated_at'] = time();
         }
 
-        $data['parent_id'] = null;
+        if (!isset($data['parent_id'])) {
+            $data['parent_id'] = null;
+        }
 
-        return $this->firewallFiltersStore->insert($data);
+        if ($defaultStore) {
+            return $this->firewallFiltersDefaultStore->insert($data);
+        } else {
+            return $this->firewallFiltersStore->insert($data);
+        }
     }
 
     public function updateFilter(array $data)
@@ -255,27 +284,27 @@ class Firewall extends Base
         return $this->firewallFiltersStore->update($filter);
     }
 
-    public function removeFilter(array $data)
+    public function removeFilter($id, $defaultStore = false)
     {
-        if (!isset($data['id'])) {
-            $this->addResponse('Please provide correct filter ID', 1);
+        if (!$filter = $this->getFilterById((int) $id, $defaultStore)) {
+            $this->addResponse('Filter with ID ' . $id . ' does not exists', 1);
 
             return false;
         }
 
-        if (!$filter = $this->getFilterById($data['id'])) {
-            $this->addResponse('Filter with ID ' . $data['id'] . ' does not exists', 1);
+        if (!$defaultStore) {
+            $childFilters = $this->getFilterByParentId((int) $filter['_id']);
 
-            return false;
+            if ($childFilters && count($childFilters) > 0) {//Remove all childs
+                $this->firewallFiltersStore->deleteBy(['parent_id', '=', (int) $filter['_id']]);
+            }
         }
 
-        $childFilters = $this->getFilterByParentId($filter['_id']);
-
-        if ($childFilters && count($childFilters) > 0) {//Remove all childs
-            $this->firewallFiltersStore->deleteBy(['parent_id', '=', $filter['_id']]);
+        if ($defaultStore) {
+            return $this->firewallFiltersDefaultStore->deleteById((int) $filter['_id']);
+        } else {
+            return $this->firewallFiltersStore->deleteById((int) $filter['_id']);
         }
-
-        return $this->firewallFiltersStore->deleteById($filter['_id']);
     }
 
     protected function validateIP($address)
@@ -342,12 +371,14 @@ class Firewall extends Base
             return true;
         }
 
+        //First Check - We check HOST entries
         $filter = $this->getFilterByAddressAndType($ip, 'host');
 
         if ($filter) {//We find the address in address_type host
             return $this->checkIPFilter($filter);
         }
 
+        //Second Check - We check NETWORK entries
         $filters = $this->getFilterByType('network');
         if ($filters && count($filters) > 0) {
             foreach ($filters as $filterKey => $filter) {
@@ -357,6 +388,7 @@ class Firewall extends Base
             }
         }
 
+        //Third Check - We check ip2location entries
         if (isset($this->config['ip2location_io_api_key']) &&
             $this->config['ip2location_io_api_key'] !== ''
         ) {
@@ -411,9 +443,25 @@ class Firewall extends Base
             }
         }
 
+        //Forth - We check DEFAULT entries
         $this->config['default_filter_hit_count'] = (int) $this->config['default_filter_hit_count'] + 1;
 
         $this->updateConfig($this->config);
+
+        //We check host entry in the default store
+        $filter = $this->getFilterByAddressAndType($ip, 'host', true);
+
+        if ($filter) {//We find the address in default store and bump its counter
+            $this->bumpFilterHitCounter($filter, true);
+        } else {//We add a new entry in default store
+            $newFilter['address_type'] = 'host';
+            $newFilter['address'] = $ip;
+            $newFilter['hit_count'] = 1;
+            $newFilter['updated_by'] = "000";
+            $newFilter['updated_at'] = time();
+            $newFilter['filter_type'] = $this->config['default_filter'];
+            $this->addFilter($newFilter, true);
+        }
 
         if ($this->config['default_filter'] === 'allow') {
             $this->addResponse('Allowed by default firewall filter', 0);
@@ -441,7 +489,7 @@ class Firewall extends Base
             $newFilter['updated_at'] = time();
             unset($newFilter['_id']);
 
-            $filter = $this->firewallFiltersStore->insert($newFilter);
+            $filter = $this->addFilter($newFilter);
         }
 
         if (isset($filter['parent_id'])) {
@@ -508,13 +556,17 @@ class Firewall extends Base
         $this->firewallFiltersStore->update($filter);
     }
 
-    protected function bumpFilterHitCounter($filter = null)
+    protected function bumpFilterHitCounter($filter, $defaultStore = false)
     {
         $filter['hit_count'] = (int) $filter['hit_count'] + 1;
 
-        $this->firewallFiltersStore->update($filter);
+        if ($defaultStore) {
+            $this->firewallFiltersDefaultStore->update($filter);
+        } else {
+            $this->firewallFiltersStore->update($filter);
+        }
 
-        if (isset($filter['parent_id'])) {
+        if (!$defaultStore && isset($filter['parent_id'])) {
             $filter = $this->getFilterById($filter['parent_id']);
 
             if ($filter) {
