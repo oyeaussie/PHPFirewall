@@ -18,7 +18,7 @@ class Firewall extends Base
     {
         $this->getConfig();
 
-        unset($this->config['_id']);
+        unset($this->config['id']);
 
         $this->addResponse('Ok', 0, $this->config);
 
@@ -41,7 +41,7 @@ class Firewall extends Base
                         continue;
                     }
 
-                    $childs = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter['_id']]);
+                    $childs = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter['id']]);
 
                     $filter['ip_hits'] = 0;
 
@@ -69,7 +69,7 @@ class Firewall extends Base
         return false;
     }
 
-    public function getFilterById($id, $defaultStore = false)
+    public function getFilterById($id, $getChildren = false, $defaultStore = false)
     {
         if ($defaultStore) {
             $filter = $this->firewallFiltersDefaultStore->findById($id);
@@ -78,10 +78,22 @@ class Firewall extends Base
         }
 
         if ($filter) {
+            if ($filter['address_type'] !== 'host' &&
+                $getChildren
+            ) {
+                $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter['id']]);
+
+                if ($filters && count($filters) > 0) {
+                    $filter['ips'] = $filters;
+                }
+            }
+
             $this->addResponse('Ok', 0, ['filter' => $filter]);
 
             return $filter;
         }
+
+        $this->addResponse('No filter found for the given id ' . $id, 1);
 
         return false;
     }
@@ -99,7 +111,7 @@ class Firewall extends Base
             if ($filter[0]['address_type'] !== 'host' &&
                 $getChildren
             ) {
-                $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter[0]['_id']]);
+                $filters = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter[0]['id']]);
 
                 if ($filters && count($filters) > 0) {
                     $filter[0]['ips'] = $filters;
@@ -202,7 +214,7 @@ class Firewall extends Base
         }
 
         if ($filterexists = $this->getFilterByAddress($data['address'])) {
-            $this->addResponse('Filter with address ' . $data['address'] . ' already exists. Please see filter with ID: ' . $filterexists['_id'], 1);
+            $this->addResponse('Filter with address ' . $data['address'] . ' already exists. Please see filter with ID: ' . $filterexists['id'], 1);
 
             return false;
         }
@@ -286,24 +298,24 @@ class Firewall extends Base
 
     public function removeFilter($id, $defaultStore = false)
     {
-        if (!$filter = $this->getFilterById((int) $id, $defaultStore)) {
+        if (!$filter = $this->getFilterById((int) $id, false, $defaultStore)) {
             $this->addResponse('Filter with ID ' . $id . ' does not exists', 1);
 
             return false;
         }
 
         if (!$defaultStore) {
-            $childFilters = $this->getFilterByParentId((int) $filter['_id']);
+            $childFilters = $this->getFilterByParentId((int) $filter['id']);
 
             if ($childFilters && count($childFilters) > 0) {//Remove all childs
-                $this->firewallFiltersStore->deleteBy(['parent_id', '=', (int) $filter['_id']]);
+                $this->firewallFiltersStore->deleteBy(['parent_id', '=', (int) $filter['id']]);
             }
         }
 
         if ($defaultStore) {
-            return $this->firewallFiltersDefaultStore->deleteById((int) $filter['_id']);
+            return $this->firewallFiltersDefaultStore->deleteById((int) $filter['id']);
         } else {
-            return $this->firewallFiltersStore->deleteById((int) $filter['_id']);
+            return $this->firewallFiltersStore->deleteById((int) $filter['id']);
         }
     }
 
@@ -398,14 +410,15 @@ class Firewall extends Base
 
             if ($filters && count($filters) > 0) {
                 foreach ($filters as $filterKey => $filter) {
+
                     $ip2locationAddressArr = explode(':', $filter['address']);
 
                     if (count($ip2locationAddressArr) === 1) {
-                        $ip2locationFilters[$ip2locationAddressArr[0]] = $filter['_id'];
+                        $ip2locationFilters[$ip2locationAddressArr[0]]['id'] = $filter['id'];
                     } else if (count($ip2locationAddressArr) === 2) {
-                        $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]] = $filter['_id'];
+                        $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]]['id'] = $filter['id'];
                     } else if (count($ip2locationAddressArr) === 3) {
-                        $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]][$ip2locationAddressArr[2]] = $filter['_id'];
+                        $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]][$ip2locationAddressArr[2]]['id'] = $filter['id'];
                     }
                 }
             }
@@ -416,12 +429,12 @@ class Firewall extends Base
                 if ($response) {
                     $filterRule = null;
 
-                    if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])])) {
-                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])];
-                    } else if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])])) {
-                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])];
-                    } else if (isset($ip2locationFilters[strtolower($response['country_code'])])) {
-                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])];
+                    if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])]['id'])) {
+                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])][strtolower($response['city_name'])]['id'];
+                    } else if (isset($ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])]['id'])) {
+                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])][strtolower($response['region_name'])]['id'];
+                    } else if (isset($ip2locationFilters[strtolower($response['country_code'])]['id'])) {
+                        $filterRule = $ip2locationFilters[strtolower($response['country_code'])]['id'];
                     }
 
                     if ($filterRule) {
@@ -475,6 +488,25 @@ class Firewall extends Base
 
     public function getIpDetailsFromIp2locationAPI($ip)
     {
+        if ($this->validateIP($ip)) {
+            $ipv6 = false;
+            if (str_contains($ip, ':')) {
+                $ipv6 = true;
+            }
+
+            $isPublic = filter_var(
+                $ip,
+                FILTER_VALIDATE_IP,
+                ($ipv6 ? FILTER_FLAG_IPV6 : FILTER_FLAG_IPV4) | FILTER_FLAG_NO_PRIV_RANGE |  FILTER_FLAG_NO_RES_RANGE
+            );
+
+            if (!$isPublic) {
+                $this->addResponse('IP Address : ' . $ip . ' is from a private range of IP addresses!', 2);
+
+                return false;
+            }
+        }
+
         if (isset($this->config['ip2location_io_api_key']) &&
             $this->config['ip2location_io_api_key'] !== ''
         ) {
@@ -507,7 +539,7 @@ class Firewall extends Base
         //Check if IP is in default store and remove it
         $inDefaultFilter = $this->getFilterByAddress($ip, false, true);
         if ($inDefaultFilter) {
-            $this->removeFilter($inDefaultFilter['_id'], true);
+            $this->removeFilter($inDefaultFilter['id'], true);
         }
 
         if ($filter['address_type'] === 'host') {
@@ -521,9 +553,9 @@ class Firewall extends Base
             $newFilter['address_type'] = 'host';
             $newFilter['address'] = $ip;
             $newFilter['hit_count'] = 0;
-            $newFilter['parent_id'] = $newFilter['_id'];
+            $newFilter['parent_id'] = $newFilter['id'];
             $newFilter['updated_at'] = time();
-            unset($newFilter['_id']);
+            unset($newFilter['id']);
 
             $filter = $this->addFilter($newFilter);
         }

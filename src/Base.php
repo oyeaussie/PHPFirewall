@@ -59,7 +59,7 @@ abstract class Base
             "auto_cache"        => true,
             "cache_lifetime"    => null,
             "timeout"           => false,
-            "primary_key"       => "_id",
+            "primary_key"       => "id",
             "search"            =>
                 [
                     "min_length"    => 2,
@@ -83,7 +83,7 @@ abstract class Base
         if (!$this->config) {
             $this->config = $this->firewallConfigStore->updateOrInsert(
                 [
-                    '_id'                       => 1,
+                    'id'                        => 1,
                     'status'                    => 'enable',//Enable/disable/monitor
                     'filter_ipv4'               => true,
                     'filter_ipv6'               => true,
