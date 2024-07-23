@@ -267,11 +267,18 @@ abstract class Base
         return $this->updateConfig(['ip2location_io_api_key' => $key]);
     }
 
+    public function setConfigIp2locationBinDownloadDate()
+    {
+        return $this->updateConfig(['ip2location_bin_download_date' => time()]);
+    }
+
     public function updateConfig($config)
     {
         $this->config = array_replace($this->config = $this->getConfig(), $config);
 
-        return $this->firewallConfigStore->update($this->config);
+        $this->firewallConfigStore->update($this->config);
+
+        return $this->getConfig();
     }
 
     public function setLocalContent($createRoot = false)
@@ -306,6 +313,12 @@ abstract class Base
     {
         if (!is_dir(fwbase_path($this->dataPath))) {
             if (!mkdir(fwbase_path($this->dataPath), 0777, true)) {
+                return false;
+            }
+        }
+
+        if (!is_dir(fwbase_path($this->dataPath . 'ip2locationdata'))) {
+            if (!mkdir(fwbase_path($this->dataPath . 'ip2locationdata'), 0777, true)) {
                 return false;
             }
         }
