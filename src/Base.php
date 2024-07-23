@@ -29,19 +29,25 @@ abstract class Base
 
     protected $firewallFiltersDefaultStore;
 
-    protected $firewallFiltersIp2locationStore;
+    protected $dataPath;
+
+    protected $ip2locationPath;
 
     public function __construct($createRoot = false, $dataPath = null)
     {
-        if (!$dataPath) {
-            $dataPath = str_contains(__DIR__, '/vendor/') ? __DIR__ . '/../../../../firewalldata/' : 'firewalldata/';
+        $this->dataPath = $dataPath;
+
+        if (!$this->dataPath) {
+            $this->dataPath = str_contains(__DIR__, '/vendor/') ? __DIR__ . '/../../../../firewalldata/' : 'firewalldata/';
         }
 
-        $this->checkFirewallPath($dataPath);
+        $this->ip2locationPath = $this->dataPath . 'ip2location/';
+
+        $this->checkFirewallPath();
 
         $this->response = new Response;
 
-        $this->setLocalContent($createRoot, $dataPath);
+        $this->setLocalContent($createRoot);
 
         $this->remoteWebContent = new Client(
             [
@@ -52,7 +58,7 @@ abstract class Base
             ]
         );
 
-        $this->databaseDirectory =  $dataPath ? $dataPath . '/db/' : __DIR__ . '/../firewalldata/db/';
+        $this->databaseDirectory =  $this->dataPath ? $this->dataPath . '/db/' : __DIR__ . '/../firewalldata/db/';
 
         $this->storeConfiguration =
         [
@@ -76,24 +82,26 @@ abstract class Base
 
         $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
 
-        $this->firewallFiltersIp2locationStore = new Store("firewall_filters_ip2Location", $this->databaseDirectory, $this->storeConfiguration);
-
         $this->getConfig();
 
         if (!$this->config) {
             $this->config = $this->firewallConfigStore->updateOrInsert(
                 [
-                    'id'                        => 1,
-                    'status'                    => 'enable',//Enable/disable/monitor
-                    'filter_ipv4'               => true,
-                    'filter_ipv6'               => true,
-                    'allow_private_range'       => true,
-                    'allow_reserved_range'      => true,
-                    'default_filter'            => 'allow',
-                    'default_filter_hit_count'  => 0,
-                    'auto_unblock_ip_minutes'   => false,
-                    'ip2location_api_key'       => null,
-                    'ip2location_io_api_key'    => null
+                    'id'                                => 1,
+                    'status'                            => 'enable',//Enable/disable/monitor
+                    'filter_ipv4'                       => true,
+                    'filter_ipv6'                       => true,
+                    'allow_private_range'               => true,
+                    'allow_reserved_range'              => true,
+                    'default_filter'                    => 'allow',
+                    'default_filter_hit_count'          => 0,
+                    'auto_unblock_ip_minutes'           => false,
+                    'ip2location_primary_lookup_method' => 'api',//api/bin
+                    'ip2location_api_key'               => null,
+                    'ip2location_bin_file_code'         => 'DB3LITEBINIPV6',//IP-COUNTRY-REGION-CITY
+                    'ip2location_bin_access_mode'       => 'FILE_IO',//SHARED_MEMORY, MEMORY_CACHE, FILE_IO
+                    'ip2location_bin_download_date'     => null,
+                    'ip2location_io_api_key'            => null,
                 ]
             );
         }
@@ -236,11 +244,11 @@ abstract class Base
         return $this->firewallConfigStore->update($this->config);
     }
 
-    public function setLocalContent($createRoot = false, $dataPath = null)
+    public function setLocalContent($createRoot = false)
     {
         $this->localContent = new Filesystem(
             new LocalFilesystemAdapter(
-                $dataPath ?? __DIR__ . '/../',
+                $this->dataPath ?? __DIR__ . '/../',
                 null,
                 LOCK_EX,
                 LocalFilesystemAdapter::SKIP_LINKS,
@@ -264,10 +272,10 @@ abstract class Base
         }
     }
 
-    protected function checkFirewallPath($dataPath)
+    protected function checkFirewallPath()
     {
-        if (!is_dir(fwbase_path($dataPath))) {
-            if (!mkdir(fwbase_path($dataPath), 0777, true)) {
+        if (!is_dir(fwbase_path($this->dataPath))) {
+            if (!mkdir(fwbase_path($this->dataPath), 0777, true)) {
                 return false;
             }
         }
