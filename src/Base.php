@@ -222,6 +222,36 @@ abstract class Base
         return $this->updateConfig(['ip2location_api_key' => $key]);
     }
 
+    public function setIp2locationBinFileCode($fileCode)
+    {
+        if ($fileCode === '') {
+            $this->addResponse('Please provide correct fileCode.', 1);
+
+            return false;
+        }
+
+        if ($fileCode === 'null') {
+            $fileCode = null;
+        }
+
+        return $this->updateConfig(['ip2location_bin_file_code' => $fileCode]);
+    }
+
+    public function setIp2locationBinAccessMode($accessMode)
+    {
+        if ($accessMode === '') {
+            $this->addResponse('Please provide correct fileMode.', 1);
+
+            return false;
+        }
+
+        if ($accessMode === 'null') {
+            $accessMode = null;
+        }
+
+        return $this->updateConfig(['ip2location_bin_access_mode' => $accessMode]);
+    }
+
     public function setConfigIp2locationIoKey($key)
     {
         if ($key === '') {
