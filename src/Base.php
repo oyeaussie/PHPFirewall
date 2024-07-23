@@ -29,6 +29,8 @@ abstract class Base
 
     protected $firewallFiltersDefaultStore;
 
+    protected $firewallFiltersIp2locationStore;
+
     protected $dataPath;
 
     protected $ip2locationPath;
@@ -81,6 +83,8 @@ abstract class Base
         $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
 
         $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
+
+        $this->firewallFiltersIp2locationStore = new Store("firewall_filters_ip2location", $this->databaseDirectory, $this->storeConfiguration);
 
         $this->getConfig();
 

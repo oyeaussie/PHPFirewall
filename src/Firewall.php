@@ -453,6 +453,35 @@ class Firewall extends Base
         }
 
         //Third Check - We check ip2location entries
+        //Third One - We check the local database first
+        if (isset($this->config['ip2location_api_key']) &&
+            $this->config['ip2location_api_key'] !== ''
+        ) {
+            //check for BIN file existence
+
+            try {
+                $ip2locationBin =
+                    new \IP2Location\Database(
+                        fwbase_path($this->dataPath . 'ip2locationdata/' . $this->config['ip2location_bin_file_code'] . '.BIN'),
+                        constant('\IP2Location\Database::' . $this->config['ip2location_bin_access_mode'])
+                    );
+            } catch (\Exception $e) {
+                throw $e;
+            }
+
+            $recordArr = $ip2locationBin->lookup($ip, \IP2Location\Database::ALL);
+
+            if ($recordArr) {
+                $record['ip'] = $ip;
+                $record['country_code'] = $recordArr['countryCode'];
+                $record['country_name'] = $recordArr['countryName'];
+                $record['region_name'] = $recordArr['regionName'];
+                $record['city_name'] = $recordArr['cityName'];
+            }
+            var_dump($record);
+        }
+
+        //Third Two - we check the ip2location.io if in case local search fail.
         if (isset($this->config['ip2location_io_api_key']) &&
             $this->config['ip2location_io_api_key'] !== ''
         ) {
@@ -554,6 +583,8 @@ class Firewall extends Base
 
                 return false;
             }
+        } else {
+            return false;
         }
 
         $firewallFiltersIp2locationStoreEntry = $this->firewallFiltersIp2locationStore->findBy(['ip', '=', $ip]);
