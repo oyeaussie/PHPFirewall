@@ -100,12 +100,12 @@ abstract class Base
                     'default_filter'                    => 'allow',
                     'default_filter_hit_count'          => 0,
                     'auto_unblock_ip_minutes'           => false,
-                    'ip2location_primary_lookup_method' => 'api',//api/bin
                     'ip2location_api_key'               => null,
                     'ip2location_bin_file_code'         => 'DB3LITEBINIPV6',//IP-COUNTRY-REGION-CITY
                     'ip2location_bin_access_mode'       => 'FILE_IO',//SHARED_MEMORY, MEMORY_CACHE, FILE_IO
                     'ip2location_bin_download_date'     => null,
                     'ip2location_io_api_key'            => null,
+                    'ip2location_primary_lookup_method' => 'API'//API/BIN
                 ]
             );
         }
@@ -229,7 +229,7 @@ abstract class Base
     public function setIp2locationBinFileCode($fileCode)
     {
         if ($fileCode === '') {
-            $this->addResponse('Please provide correct fileCode.', 1);
+            $this->addResponse('Please provide correct file code.', 1);
 
             return false;
         }
@@ -238,13 +238,13 @@ abstract class Base
             $fileCode = null;
         }
 
-        return $this->updateConfig(['ip2location_bin_file_code' => $fileCode]);
+        return $this->updateConfig(['ip2location_bin_file_code' => strtoupper($fileCode)]);
     }
 
     public function setIp2locationBinAccessMode($accessMode)
     {
         if ($accessMode === '') {
-            $this->addResponse('Please provide correct fileMode.', 1);
+            $this->addResponse('Please provide correct file mode.', 1);
 
             return false;
         }
@@ -253,7 +253,7 @@ abstract class Base
             $accessMode = null;
         }
 
-        return $this->updateConfig(['ip2location_bin_access_mode' => $accessMode]);
+        return $this->updateConfig(['ip2location_bin_access_mode' => strtoupper($accessMode)]);
     }
 
     public function setConfigIp2locationIoKey($key)
@@ -269,6 +269,19 @@ abstract class Base
         }
 
         return $this->updateConfig(['ip2location_io_api_key' => $key]);
+    }
+
+    public function setIp2locationPrimaryLookupMethod($lookupMethod)
+    {
+        if ($lookupMethod === '' ||
+            ($lookupMethod !== 'API' && $lookupMethod !== 'BIN')
+        ) {
+            $this->addResponse('Please provide correct primary method.', 1);
+
+            return false;
+        }
+
+        return $this->updateConfig(['ip2location_primary_lookup_method' => strtoupper($lookupMethod)]);
     }
 
     public function setConfigIp2locationBinDownloadDate()

@@ -452,60 +452,45 @@ class Firewall extends Base
             }
         }
 
-        //Third Check - We check ip2location entries
-        //Third One - We check the local database first
-        if (isset($this->config['ip2location_api_key']) &&
-            $this->config['ip2location_api_key'] !== ''
-        ) {
-            //check for BIN file existence
+        //Third Check - We check ip2location as per the primary set first and then secondary if we did not find the entry
+        $ip2locationFilters = [];
 
-            try {
-                $ip2locationBin =
-                    new \IP2Location\Database(
-                        fwbase_path($this->dataPath . 'ip2locationdata/' . $this->config['ip2location_bin_file_code'] . '.BIN'),
-                        constant('\IP2Location\Database::' . $this->config['ip2location_bin_access_mode'])
-                    );
-            } catch (\Exception $e) {
-                throw $e;
-            }
+        $filters = $this->getFilterByType('ip2location');
 
-            $recordArr = $ip2locationBin->lookup($ip, \IP2Location\Database::ALL);
+        if ($filters && count($filters) > 0) {
+            foreach ($filters as $filterKey => $filter) {
 
-            if ($recordArr) {
-                $record['ip'] = $ip;
-                $record['country_code'] = $recordArr['countryCode'];
-                $record['country_name'] = $recordArr['countryName'];
-                $record['region_name'] = $recordArr['regionName'];
-                $record['city_name'] = $recordArr['cityName'];
-            }
-            var_dump($record);
-        }
+                $ip2locationAddressArr = explode(':', $filter['address']);
 
-        //Third Two - we check the ip2location.io if in case local search fail.
-        if (isset($this->config['ip2location_io_api_key']) &&
-            $this->config['ip2location_io_api_key'] !== ''
-        ) {
-            $ip2locationFilters = [];
-
-            $filters = $this->getFilterByType('ip2location');
-
-            if ($filters && count($filters) > 0) {
-                foreach ($filters as $filterKey => $filter) {
-
-                    $ip2locationAddressArr = explode(':', $filter['address']);
-
-                    if (count($ip2locationAddressArr) === 1) {
-                        $ip2locationFilters[$ip2locationAddressArr[0]]['id'] = $filter['id'];
-                    } else if (count($ip2locationAddressArr) === 2) {
-                        $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]]['id'] = $filter['id'];
-                    } else if (count($ip2locationAddressArr) === 3) {
-                        $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]][$ip2locationAddressArr[2]]['id'] = $filter['id'];
-                    }
+                if (count($ip2locationAddressArr) === 1) {
+                    $ip2locationFilters[$ip2locationAddressArr[0]]['id'] = $filter['id'];
+                } else if (count($ip2locationAddressArr) === 2) {
+                    $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]]['id'] = $filter['id'];
+                } else if (count($ip2locationAddressArr) === 3) {
+                    $ip2locationFilters[$ip2locationAddressArr[0]][$ip2locationAddressArr[1]][$ip2locationAddressArr[2]]['id'] = $filter['id'];
                 }
             }
+        }
 
-            if (count($ip2locationFilters) > 0) {
-                $response = $this->getIpDetailsFromIp2locationAPI($ip);
+        if (count($ip2locationFilters) > 0) {
+            $ip2locationLookupOptions = ['API', 'BIN'];
+
+            if (in_array($this->config['ip2location_primary_lookup_method'], $ip2locationLookupOptions)) {
+                $arrayKey = array_keys($ip2locationLookupOptions, $this->config['ip2location_primary_lookup_method']);
+
+                $lookupMethod = 'getIpDetailsFromIp2location' . $ip2locationLookupOptions[$arrayKey[0]];
+
+                $response = $this->$lookupMethod($ip);
+
+                if (!$response) {//Not found in primary lookup, we get the secondary from list.
+                    unset($ip2locationLookupOptions[$arrayKey[0]]);
+
+                    $ip2locationLookupOptions = array_values($ip2locationLookupOptions);
+
+                    $lookupMethod = 'getIpDetailsFromIp2location' . $ip2locationLookupOptions[0];
+
+                    $response = $this->$lookupMethod($ip);
+                }
 
                 if ($response) {
                     $filterRule = null;
@@ -564,26 +549,41 @@ class Firewall extends Base
         return true;
     }
 
+    public function getIpDetailsFromIp2locationBIN($ip)
+    {
+        if (!$this->checkIPIsPublic($ip)) {
+            return false;
+        }
+
+        try {
+            $ip2locationBin =
+                new \IP2Location\Database(
+                    fwbase_path($this->dataPath . 'ip2locationdata/' . $this->config['ip2location_bin_file_code'] . '.BIN'),
+                    constant('\IP2Location\Database::' . $this->config['ip2location_bin_access_mode'])
+                );
+        } catch (\Exception $e) {
+            //Log it to logger here.
+            return false;
+        }
+
+        $recordArr = $ip2locationBin->lookup($ip, \IP2Location\Database::ALL);
+
+        if ($recordArr) {
+            $record['ip'] = $ip;
+            $record['country_code'] = $recordArr['countryCode'];
+            $record['country_name'] = $recordArr['countryName'];
+            $record['region_name'] = $recordArr['regionName'];
+            $record['city_name'] = $recordArr['cityName'];
+
+            return $record;
+        }
+
+        return false;
+    }
+
     public function getIpDetailsFromIp2locationAPI($ip)
     {
-        if ($this->validateIP($ip)) {
-            $ipv6 = false;
-            if (str_contains($ip, ':')) {
-                $ipv6 = true;
-            }
-
-            $isPublic = filter_var(
-                $ip,
-                FILTER_VALIDATE_IP,
-                ($ipv6 ? FILTER_FLAG_IPV6 : FILTER_FLAG_IPV4) | FILTER_FLAG_NO_PRIV_RANGE |  FILTER_FLAG_NO_RES_RANGE
-            );
-
-            if (!$isPublic) {
-                $this->addResponse('IP Address : ' . $ip . ' is from a private range of IP addresses!', 2);
-
-                return false;
-            }
-        } else {
+        if (!$this->checkIPIsPublic($ip)) {
             return false;
         }
 
@@ -606,20 +606,51 @@ class Firewall extends Base
 
                     $response = json_decode($response, true);
 
-                    $this->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $response]);
+                    $ipDetails['ip'] = $response['ip'];
+                    $ipDetails['country_code'] = $response['country_code'];
+                    $ipDetails['region_name'] = $response['region_name'];
+                    $ipDetails['city_name'] = $response['city_name'];
+
+                    $this->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $ipDetails]);
 
                     return $response;
                 } else {
                     throw new \Exception('Lookup failed because of code : ' . $apiCallResponse->getStatusCode());
                 }
-
-                return false;
             } catch (\throwable $e) {
-                throw $e;
+                //Log to logger here
+                return false;
             }
         }
 
         return false;
+    }
+
+    protected function checkIPIsPublic($ip)
+    {
+        if ($this->validateIP($ip)) {
+            $ipv6 = false;
+
+            if (str_contains($ip, ':')) {
+                $ipv6 = true;
+            }
+
+            $isPublic = filter_var(
+                $ip,
+                FILTER_VALIDATE_IP,
+                ($ipv6 ? FILTER_FLAG_IPV6 : FILTER_FLAG_IPV4) | FILTER_FLAG_NO_PRIV_RANGE |  FILTER_FLAG_NO_RES_RANGE
+            );
+
+            if (!$isPublic) {
+                $this->addResponse('IP Address : ' . $ip . ' is from a private range of IP addresses!', 2);
+
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        return true;
     }
 
     protected function checkIPFilter($filter, $ip = false)
