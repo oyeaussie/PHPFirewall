@@ -25,6 +25,15 @@ class Firewall extends Base
         return (array) $this->response;
     }
 
+    public function getFiltersCount($defaultStore = false)
+    {
+        if ($defaultStore) {
+            return $this->firewallFiltersDefaultStore->count();
+        } else {
+            return $this->firewallFiltersStore->count();
+        }
+    }
+
     public function getFilters($defaultStore = false)
     {
         if ($defaultStore) {
@@ -138,6 +147,46 @@ class Firewall extends Base
         }
 
         $this->addResponse('No filter found for the given id ' . $id, 1);
+
+        return false;
+    }
+
+    public function searchFilterByAddress($address, $defaultStore = false)
+    {
+        if ($defaultStore) {
+            $filters = $this->firewallFiltersDefaultStore->findBy(['address', 'like', '%' . $address . '%']);
+        } else {
+            $filters = $this->firewallFiltersStore->findBy(['address', 'like', '%' . $address . '%']);
+        }
+
+        if (count($filters) > 0) {
+            if (!$defaultStore) {
+                foreach ($filters as &$filter) {
+                    if ($filter['address_type'] === 'host') {
+                        $filter['ip_hits'] = '-';
+                        continue;
+                    }
+
+                    $childs = $this->firewallFiltersStore->findBy(['parent_id', '=', $filter['id']]);
+
+                    $filter['ip_hits'] = 0;
+
+                    if ($childs) {
+                        $childs = count($childs);
+
+                        if ($childs > 0) {
+                            $filter['ip_hits'] = $childs;
+                        }
+                    }
+                }
+            }
+
+            $this->addResponse('Ok', 0, ['filters' => $filters]);
+
+            return $filters;
+        }
+
+        $this->addResponse('No filter found for the given address ' . $address, 1);
 
         return false;
     }
