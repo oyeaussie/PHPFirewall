@@ -2,6 +2,7 @@
 
 namespace PHPFirewall;
 
+use Carbon\Carbon;
 use GuzzleHttp\Client;
 use League\Flysystem\Filesystem;
 use League\Flysystem\Local\LocalFilesystemAdapter;
@@ -25,6 +26,12 @@ abstract class Base
 
     protected $firewallConfigStore;
 
+    protected $firewallGeoCountriesStore;
+
+    protected $firewallGeoStatesStore;
+
+    protected $firewallGeoCitiesStore;
+
     protected $firewallFiltersStore;
 
     protected $firewallFiltersDefaultStore;
@@ -34,6 +41,16 @@ abstract class Base
     protected $dataPath;
 
     protected $ip2locationPath;
+
+    public $trackCounter;
+
+    public $trackTicksCounter;
+
+    protected $microtime = 0;
+
+    protected $memoryusage = 0;
+
+    protected $microTimers = [];
 
     public function __construct($createRoot = false, $dataPath = null)
     {
@@ -49,7 +66,7 @@ abstract class Base
 
         $this->response = new Response;
 
-        $this->setLocalContent($createRoot);
+        $this->setLocalContent($createRoot, $dataPath);
 
         $this->remoteWebContent = new Client(
             [
@@ -80,6 +97,12 @@ abstract class Base
 
         $this->firewallConfigStore = new Store("firewall_config", $this->databaseDirectory, $this->storeConfiguration);
 
+        $this->firewallGeoCountriesStore = new Store("firewall_geo_countries", $this->databaseDirectory, $this->storeConfiguration);
+
+        $this->firewallGeoStatesStore = new Store("firewall_geo_states", $this->databaseDirectory, $this->storeConfiguration);
+
+        $this->firewallGeoCitiesStore = new Store("firewall_geo_cities", $this->databaseDirectory, $this->storeConfiguration);
+
         $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
 
         $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
@@ -105,7 +128,8 @@ abstract class Base
                     'ip2location_bin_access_mode'       => 'FILE_IO',//SHARED_MEMORY, MEMORY_CACHE, FILE_IO
                     'ip2location_bin_download_date'     => null,
                     'ip2location_io_api_key'            => null,
-                    'ip2location_primary_lookup_method' => 'API'//API/BIN
+                    'ip2location_primary_lookup_method' => 'API',//API/BIN
+                    'geodata_download_date'             => null
                 ]
             );
         }
@@ -114,6 +138,14 @@ abstract class Base
     public function getConfig()
     {
         $this->config = $this->firewallConfigStore->findById(1);
+
+        if ($this->config['ip2location_bin_download_date']) {
+            $this->config['ip2location_bin_download_date'] = (Carbon::parse($this->config['ip2location_bin_download_date']))->toDateTimeString();
+        }
+
+        if ($this->config['geodata_download_date']) {
+            $this->config['geodata_download_date'] = (Carbon::parse($this->config['geodata_download_date']))->toDateTimeString();
+        }
 
         return $this->config;
     }
@@ -289,6 +321,11 @@ abstract class Base
         return $this->updateConfig(['ip2location_bin_download_date' => time()]);
     }
 
+    public function setConfigGeodataDownloadDate()
+    {
+        return $this->updateConfig(['geodata_download_date' => time()]);
+    }
+
     public function updateConfig($config)
     {
         $this->config = array_replace($this->config = $this->getConfig(), $config);
@@ -298,11 +335,11 @@ abstract class Base
         return $this->getConfig();
     }
 
-    public function setLocalContent($createRoot = false)
+    public function setLocalContent($createRoot = false, $dataPath = null)
     {
         $this->localContent = new Filesystem(
             new LocalFilesystemAdapter(
-                $this->dataPath ?? __DIR__ . '/../',
+                $dataPath ?? __DIR__ . '/../',
                 null,
                 LOCK_EX,
                 LocalFilesystemAdapter::SKIP_LINKS,
@@ -326,6 +363,79 @@ abstract class Base
         }
     }
 
+    public function getMicroTimer()
+    {
+        return $this->microTimers;
+    }
+
+    public function downloadData($url, $sink)
+    {
+        $this->trackCounter = 0;
+        $this->trackTicksCounter = 0;
+
+        $download = $this->remoteWebContent->request(
+            'GET',
+            $url,
+            [
+                'progress' => function(
+                    $downloadTotal,
+                    $downloadedBytes,
+                    $uploadTotal,
+                    $uploadedBytes
+                ) {
+                    if ($downloadTotal === 0 || $downloadedBytes === 0) {
+                        return;
+                    }
+
+                    //Trackcounter is needed as guzzelhttp runs this in a while loop causing too many updates with same download count.
+                    //So this way, we only update progress when there is actually an update.
+                    if ($downloadedBytes === $this->trackCounter) {
+                        return;
+                    }
+
+                    $this->trackCounter = $downloadedBytes;
+
+                    if (!$this->progress) {
+                        $this->newProgress(100);
+                    }
+
+                    if ($downloadedBytes === $downloadTotal) {
+                        if ($this->progress) {
+                            $this->updateProgress('Downloading file ' . '... (' . $downloadTotal . '/' . $downloadTotal . ')');
+
+                            $this->finishProgress();
+
+                            $this->progress = null;
+                        }
+                    } else {
+                        $downloadPercentTicks = (int) (($downloadedBytes * 100) / $downloadTotal);
+
+                        if ($downloadPercentTicks > $this->trackTicksCounter) {
+                            $this->trackTicksCounter = $downloadPercentTicks;
+
+                            $this->updateProgress('Downloading file ' . '... (' . $downloadedBytes . '/' . $downloadTotal . ')');
+                        }
+                    }
+                },
+                'verify'            => false,
+                'connect_timeout'   => 5,
+                'timeout'           => 360,
+                'sink'              => $sink
+            ]
+        );
+
+
+        if ($download->getStatusCode() === 200) {
+            $this->addResponse('Download file from URL: ' . $url);
+
+            return $download;
+        }
+
+        $this->addResponse('Download resulted in : ' . $download->getStatusCode(), 1);
+
+        return false;
+    }
+
     protected function checkFirewallPath()
     {
         if (!is_dir(fwbase_path($this->dataPath))) {
@@ -340,6 +450,46 @@ abstract class Base
             }
         }
 
+        if (!is_dir(fwbase_path($this->dataPath . 'geodata'))) {
+            if (!mkdir(fwbase_path($this->dataPath . 'geodata'), 0777, true)) {
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    protected function setMicroTimer($reference, $calculateMemoryUsage = false)
+    {
+        $microtime['reference'] = $reference;
+
+        if ($this->microtime === 0) {
+            $microtime['difference'] = 0;
+            $this->microtime = microtime(true);
+        } else {
+            $now = microtime(true);
+            $microtime['difference'] = $now - $this->microtime;
+            $this->microtime = $now;
+        }
+
+        if ($calculateMemoryUsage) {
+            if ($this->memoryusage === 0) {
+                $microtime['memoryusage'] = 0;
+                $this->memoryusage = memory_get_usage();
+            } else {
+                $currentMemoryUsage = memory_get_usage();
+                $microtime['memoryusage'] = $this->getMemUsage($currentMemoryUsage - $this->memoryusage);
+                $this->memoryusage = $currentMemoryUsage;
+            }
+        }
+
+        array_push($this->microTimers, $microtime);
+    }
+
+    protected function getMemUsage($bytes)
+    {
+        $unit=array('b','kb','mb','gb','tb','pb');
+
+        return @round($bytes/pow(1024,($i=floor(log($bytes,1024)))),2).' '.$unit[$i];
     }
 }

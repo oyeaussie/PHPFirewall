@@ -423,6 +423,11 @@ class Firewall extends Base
 
     public function checkIp($ip, $removeFromAutoMonitoring = false)
     {
+
+            $this->setMicroTimer('stringLookupEnd', true);
+
+            $this->hashFoundArr['timer'] = $this->getMicroTimer();
+
         if (!$this->validateIP($ip)) {
             return false;
         }
@@ -742,6 +747,211 @@ class Firewall extends Base
         $filter['filter_type'] = 'allow';
 
         $this->firewallFiltersStore->update($filter);
+    }
+
+    public function downloadBinFile()
+    {
+        $download = $this->downloadData(
+                'https://www.ip2location.com/download/?token=' . $this->config['ip2location_api_key'] . '&file=' . $this->config['ip2location_bin_file_code'],
+                fwbase_path('firewalldata/ip2locationdata/' . $this->config['ip2location_bin_file_code'] . '.ZIP')
+            );
+
+        if ($download) {
+            $this->processDownloadedBinFile($download);
+
+            return true;
+        }
+
+        $this->addResponse('Error downloading file', 1);
+    }
+
+    public function processDownloadedBinFile($download, $trackCounter = null)
+    {
+        if (!is_null($trackCounter)) {
+            $this->trackCounter = $trackCounter;
+        }
+
+        if ($this->trackCounter === 0) {
+            $this->addResponse('Error while downloading file: ' . $download->getBody()->getContents(), 1);
+
+            return false;
+        }
+
+        //Extract here.
+        $zip = new \ZipArchive;
+
+        if ($zip->open(fwbase_path('firewalldata/ip2locationdata/DB3LITEBINIPV6.ZIP')) === true) {
+            $zip->extractTo(fwbase_path('firewalldata/ip2locationdata/'));
+
+            $zip->close();
+        }
+
+        //Rename file to the bin file code name.
+        try {
+            $this->setLocalContent(false, fwbase_path('firewalldata/ip2locationdata/'));
+
+            $folderContents = $this->localContent->listContents('');
+
+            $renamedFile = false;
+
+            foreach ($folderContents as $key => $content) {
+                if ($content instanceof \League\Flysystem\FileAttributes) {
+                    if (str_contains($content->path(), '.BIN')) {
+                        $this->localContent->move($content->path(), $this->config['ip2location_bin_file_code'] . '.BIN');
+
+                        $renamedFile = true;
+
+                        break;
+                    }
+                }
+            }
+
+            if (!$renamedFile){
+                throw new \Exception('ip2locationdata has no files');
+            }
+
+            $this->setLocalContent();
+        } catch (\League\Flysystem\UnableToListContents | \throwable | \League\Flysystem\UnableToMoveFile | \League\Flysystem\FilesystemException $e) {
+            throw $e;
+        }
+
+        $this->setConfigIp2locationBinDownloadDate();
+
+        $this->addResponse('Updated ip2location bin file.');
+
+        return true;
+    }
+
+    public function downloadGeodataFile()
+    {
+        $download = $this->downloadData(
+                'https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/countries%2Bstates%2Bcities.json',
+                fwbase_path('firewalldata/geodata/countries+states+cities.json')
+            );
+
+        if ($download) {
+            $this->processDownloadedGeodataFile($download);
+
+            return true;
+        }
+
+        $this->addResponse('Error downloading file', 1);
+    }
+
+    public function processDownloadedGeodataFile($download, $trackCounter = null)
+    {
+        if (!is_null($trackCounter)) {
+            $this->trackCounter = $trackCounter;
+        }
+
+        if ($this->trackCounter === 0) {
+            $this->addResponse('Error while downloading file: ' . $download->getBody()->getContents(), 1);
+
+            return false;
+        }
+
+        //Process Downloaded JSON File
+        try {
+            $this->setLocalContent(false, fwbase_path('firewalldata/geodata/'));
+
+            $jsonFile = $this->localContent->read('countries+states+cities.json');
+
+            $jsonFile = @json_decode($jsonFile, true);
+
+            foreach ($jsonFile as $country) {
+                $this->firewallGeoCountriesStore->updateOrInsert(
+                    [
+                        'id'            => $country['id'],
+                        'name'          => $country['name'],
+                        'country_code'  => $country['iso2'],
+                    ]
+                );
+
+                if (isset($country['states'])) {
+                    foreach ($country['states'] as $state) {
+                        $this->firewallGeoStatesStore->updateOrInsert(
+                            [
+                                'id'            => $state['id'],
+                                'name'          => $state['name'],
+                                'state_code'    => $state['state_code'],
+                                'country_id'    => $country['id'],
+                                'country_code'  => $country['iso2'],
+                            ]
+                        );
+
+                        if (isset($state['cities'])) {
+                            foreach ($state['cities'] as $city) {
+                                $this->firewallGeoCitiesStore->updateOrInsert(
+                                    [
+                                        'id'            => $city['id'],
+                                        'name'          => $city['name'],
+                                        'state_id'      => $state['id'],
+                                        'state_code'    => $state['state_code'],
+                                        'country_id'    => $country['id'],
+                                        'country_code'  => $country['iso2']
+                                    ]
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
+            $this->setLocalContent();
+        } catch (\League\Flysystem\UnableToReadFile | \throwable | \League\Flysystem\FilesystemException $e) {
+            throw $e;
+        }
+
+        $this->setConfigGeodataDownloadDate();
+
+        $this->addResponse('Updated Geodata database.');
+
+        return true;
+    }
+
+    public function geoGetCountries()
+    {
+        $countries = $this->firewallGeoCountriesStore->findAll();
+
+        if ($countries) {
+            $this->addResponse('OK', 0, ['countries' => $countries]);
+
+            return $countries;
+        }
+
+        $this->addResponse('No countries found in database!', 1);
+
+        return false;
+    }
+
+    public function geoGetStates($countryCode)
+    {
+        $states = $this->firewallGeoStatesStore->findBy(['country_code', '=', strtoupper($countryCode)]);
+
+        if ($states) {
+            $this->addResponse('OK', 0, ['states' => $states]);
+
+            return $states;
+        }
+
+        $this->addResponse('No states found in database!', 1);
+
+        return false;
+    }
+
+    public function geoGetCities($countryCode, $stateCode)
+    {
+        $cities = $this->firewallGeoCitiesStore->findBy([['country_code', '=', strtoupper($countryCode)], ['state_code', '=', strtoupper($stateCode)]]);
+
+        if ($cities) {
+            $this->addResponse('OK', 0, ['cities' => $cities]);
+
+            return $cities;
+        }
+
+        $this->addResponse('No cities found in database!', 1);
+
+        return false;
     }
 
     protected function bumpFilterHitCounter($filter, $defaultStore = false)
