@@ -5,6 +5,8 @@ namespace PHPFirewall;
 use Carbon\Carbon;
 use PHPFirewall\Base;
 use Phalcon\Filter\Validation\Validator\Ip;
+use SleekDB\Cache;
+use SleekDB\Classes\IoHelper;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 class Firewall extends Base
@@ -27,10 +29,34 @@ class Firewall extends Base
 
     public function getFiltersCount($defaultStore = false)
     {
+        $cacheTokenArray = ["count" => true];
+
         if ($defaultStore) {
-            return $this->firewallFiltersDefaultStore->count();
+            if ($this->firewallFiltersDefaultStore->_getUseCache() === true) {
+                $cache = new Cache($this->firewallFiltersDefaultStore->getStorePath(), $cacheTokenArray, null);
+                $cache->delete();
+                $count = $this->firewallFiltersDefaultStore->count();
+                IoHelper::updateFileContent($this->firewallFiltersDefaultStore->getStorePath() . '_cnt.sdb', function() use ($count) {
+                    return $count;
+                });
+            } else {
+                $count = $this->firewallFiltersDefaultStore->count();
+            }
+
+            return $count;
         } else {
-            return $this->firewallFiltersStore->count();
+            if ($this->firewallFiltersStore->_getUseCache() === true) {
+                $cache = new Cache($this->firewallFiltersStore->getStorePath(), $cacheTokenArray, null);
+                $cache->delete();
+                $count = $this->firewallFiltersStore->count();
+                IoHelper::updateFileContent($this->firewallFiltersStore->getStorePath() . '_cnt.sdb', function() use ($count) {
+                    return $count;
+                });
+            } else {
+                $count = $this->firewallFiltersStore->count();
+            }
+
+            return $count;
         }
     }
 
