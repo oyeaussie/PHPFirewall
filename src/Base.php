@@ -123,6 +123,7 @@ abstract class Base
                     'default_filter'                    => 'allow',
                     'default_filter_hit_count'          => 0,
                     'auto_unblock_ip_minutes'           => false,
+                    'auto_indexing'                     => true,//Index host addresses in main and default filters
                     'ip2location_api_key'               => null,
                     'ip2location_bin_file_code'         => 'DB3LITEBINIPV6',//IP-COUNTRY-REGION-CITY
                     'ip2location_bin_access_mode'       => 'FILE_IO',//SHARED_MEMORY, MEMORY_CACHE, FILE_IO
@@ -241,6 +242,21 @@ abstract class Base
         }
 
         return $this->updateConfig(['auto_unblock_ip_minutes' => $minutes]);
+    }
+
+    public function setAutoIndexing($status)
+    {
+        $status = strtolower($status);
+
+        if ($status !== 'enable' &&
+            $status !== 'disable'
+        ) {
+            $this->addResponse('Please provide correct status.', 1);
+
+            return false;
+        }
+
+        return $this->updateConfig(['auto_indexing' => ($status === 'enable' ? true : false)]);
     }
 
     public function setConfigIp2locationKey($key)

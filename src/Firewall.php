@@ -266,6 +266,25 @@ class Firewall extends Base
         return false;
     }
 
+    public function getFilterByAddressTypeAndFilterType($addressType, $filterType, $defaultStore = false)
+    {
+        if ($defaultStore) {
+            $filters = $this->firewallFiltersDefaultStore->findBy([['address_type', '=', $addressType], ['filter_type', '=', $filterType]]);
+        } else {
+            $filters = $this->firewallFiltersStore->findBy([['address_type', '=', $addressType], ['filter_type', '=', $filterType]]);
+        }
+
+        if ($filters) {
+            $this->addResponse('Ok', 0, ['filters' => $filters]);
+
+            return $filters;
+        }
+
+        $this->addResponse('No filters found for the given address type and filter type', 1);
+
+        return false;
+    }
+
     public function getFilterByType($type, $defaultStore = false, $children = false)
     {
         $searchConditions = [['address_type', '=', $type]];
