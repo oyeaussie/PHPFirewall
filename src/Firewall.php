@@ -517,10 +517,8 @@ class Firewall extends Base
 
     public function checkIp($ip, $removeFromAutoMonitoring = false)
     {
-
-            $this->setMicroTimer('stringLookupEnd', true);
-
-            $this->hashFoundArr['timer'] = $this->getMicroTimer();
+        $this->microtime = 0;
+        $this->memoryusage = 0;
 
         if (!$this->validateIP($ip)) {
             return false;
@@ -535,23 +533,44 @@ class Firewall extends Base
         }
 
         //First Check - We check HOST entries
+        $this->setMicroTimer('hostCheckIpFilterStart', true);
+
         $filter = $this->getFilterByAddressAndType($ip, 'host');
 
         if ($filter) {//We find the address in address_type host
-            return $this->checkIPFilter($filter, $ip);
+            $hostCheckIpFilter = $this->checkIPFilter($filter, $ip);
+
+            $this->setMicroTimer('hostCheckIpFilterEnd', true);
+
+            return $hostCheckIpFilter;
         }
 
         //Second Check - We check NETWORK entries
+        $this->microtime = 0;
+        $this->memoryusage = 0;
+
+        $this->setMicroTimer('networkCheckIpFilterStart', true);
+
         $filters = $this->getFilterByType('network');
+
         if ($filters && count($filters) > 0) {
             foreach ($filters as $filterKey => $filter) {
                 if (IpUtils::checkIp($ip, $filter['address'])) {
-                    return $this->checkIPFilter($filter, $ip);
+                    $networkCheckIpFilter = $this->checkIPFilter($filter, $ip);
+
+                    $this->setMicroTimer('networkCheckIpFilterEnd', true);
+
+                    return $networkCheckIpFilter;
                 }
             }
         }
 
         //Third Check - We check ip2location as per the primary set first and then secondary if we did not find the entry
+        $this->microtime = 0;
+        $this->memoryusage = 0;
+
+        $this->setMicroTimer('ip2locationCheckIpFilterStart', true);
+
         $ip2locationFilters = [];
 
         $filters = $this->getFilterByType('ip2location');
@@ -577,7 +596,9 @@ class Firewall extends Base
             if (in_array($this->config['ip2location_primary_lookup_method'], $ip2locationLookupOptions)) {
                 $arrayKey = array_keys($ip2locationLookupOptions, $this->config['ip2location_primary_lookup_method']);
 
-                $lookupMethod = 'getIpDetailsFromIp2location' . $ip2locationLookupOptions[$arrayKey[0]];
+                $ip2locationLookupOptionsMethod = $ip2locationLookupOptions[$arrayKey[0]];
+
+                $lookupMethod = 'getIpDetailsFromIp2location' . $ip2locationLookupOptionsMethod;
 
                 $response = $this->$lookupMethod($ip);
 
@@ -586,7 +607,9 @@ class Firewall extends Base
 
                     $ip2locationLookupOptions = array_values($ip2locationLookupOptions);
 
-                    $lookupMethod = 'getIpDetailsFromIp2location' . $ip2locationLookupOptions[0];
+                    $ip2locationLookupOptionsMethod = $ip2locationLookupOptions[0];
+
+                    $lookupMethod = 'getIpDetailsFromIp2location' . $ip2locationLookupOptionsMethod;
 
                     $response = $this->$lookupMethod($ip);
                 }
@@ -609,7 +632,11 @@ class Firewall extends Base
 
                         $this->firewallFiltersIp2locationStore->insert($response);
 
-                        return $this->checkIPFilter($filter, $ip);
+                        $ip2locationCheckIpFilter = $this->checkIPFilter($filter, $ip);
+
+                        $this->setMicroTimer('ip2location' . $ip2locationLookupOptionsMethod . 'CheckIpFilterEnd', true);
+
+                        return $ip2locationCheckIpFilter;
                     }
                 }
             }
