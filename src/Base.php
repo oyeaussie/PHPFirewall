@@ -24,13 +24,13 @@ abstract class Base
 
     public $config;
 
+    public $dataPath;
+
+    public $trackCounter;
+
+    public $trackTicksCounter;
+
     protected $firewallConfigStore;
-
-    protected $firewallGeoCountriesStore;
-
-    protected $firewallGeoStatesStore;
-
-    protected $firewallGeoCitiesStore;
 
     protected $firewallFiltersStore;
 
@@ -38,13 +38,7 @@ abstract class Base
 
     protected $firewallFiltersIp2locationStore;
 
-    protected $dataPath;
-
     protected $ip2locationPath;
-
-    public $trackCounter;
-
-    public $trackTicksCounter;
 
     protected $microtime = 0;
 
@@ -97,12 +91,6 @@ abstract class Base
 
         $this->firewallConfigStore = new Store("firewall_config", $this->databaseDirectory, $this->storeConfiguration);
 
-        $this->firewallGeoCountriesStore = new Store("firewall_geo_countries", $this->databaseDirectory, $this->storeConfiguration);
-
-        $this->firewallGeoStatesStore = new Store("firewall_geo_states", $this->databaseDirectory, $this->storeConfiguration);
-
-        $this->firewallGeoCitiesStore = new Store("firewall_geo_cities", $this->databaseDirectory, $this->storeConfiguration);
-
         $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
 
         $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
@@ -136,7 +124,18 @@ abstract class Base
         }
     }
 
-    public function getConfig()
+    public function getFirewallConfig()
+    {
+        $this->getConfig();
+
+        unset($this->config['id']);
+
+        $this->addResponse('Ok', 0, $this->config);
+
+        return (array) $this->response;
+    }
+
+    protected function getConfig()
     {
         $this->config = $this->firewallConfigStore->findById(1);
 
@@ -462,12 +461,6 @@ abstract class Base
 
         if (!is_dir(fwbase_path($this->dataPath . 'ip2locationdata'))) {
             if (!mkdir(fwbase_path($this->dataPath . 'ip2locationdata'), 0777, true)) {
-                return false;
-            }
-        }
-
-        if (!is_dir(fwbase_path($this->dataPath . 'geodata'))) {
-            if (!mkdir(fwbase_path($this->dataPath . 'geodata'), 0777, true)) {
                 return false;
             }
         }

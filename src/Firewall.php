@@ -3,7 +3,17 @@
 namespace PHPFirewall;
 
 use Carbon\Carbon;
+use IP2Location\IpTools;
+use League\Flysystem\DirectoryAttributes;
+use League\Flysystem\FileAttributes;
+use League\Flysystem\FilesystemException;
+use League\Flysystem\UnableToDeleteDirectory;
+use League\Flysystem\UnableToDeleteFile;
+use League\Flysystem\UnableToListContents;
+use League\Flysystem\UnableToWriteFile;
 use PHPFirewall\Base;
+use PHPFirewall\Geo;
+use PHPFirewall\Index;
 use Phalcon\Filter\Validation\Validator\Ip;
 use SleekDB\Cache;
 use SleekDB\Classes\IoHelper;
@@ -11,20 +21,21 @@ use Symfony\Component\HttpFoundation\IpUtils;
 
 class Firewall extends Base
 {
+    public $ipTools;
+
+    public $geo;
+
+    public $index;
+
     public function __construct($createRoot = false, $dataPath = null)
     {
+        $this->ipTools = new IpTools;
+
         parent::__construct($createRoot, $dataPath);
-    }
 
-    public function getFirewallConfig()
-    {
-        $this->getConfig();
+        $this->geo = new Geo($this);
 
-        unset($this->config['id']);
-
-        $this->addResponse('Ok', 0, $this->config);
-
-        return (array) $this->response;
+        $this->index = new Index($this);
     }
 
     public function getFiltersCount($defaultStore = false)
@@ -285,6 +296,25 @@ class Firewall extends Base
         return false;
     }
 
+    public function getFilterByAddressType($addressType, $defaultStore = false)
+    {
+        if ($defaultStore) {
+            $filters = $this->firewallFiltersDefaultStore->findBy([['address_type', '=', $addressType]]);
+        } else {
+            $filters = $this->firewallFiltersStore->findBy([['address_type', '=', $addressType]]);
+        }
+
+        if ($filters) {
+            $this->addResponse('Ok', 0, ['filters' => $filters]);
+
+            return $filters;
+        }
+
+        $this->addResponse('No filters found for the given address type and filter type', 1);
+
+        return false;
+    }
+
     public function getFilterByType($type, $defaultStore = false, $children = false)
     {
         $searchConditions = [['address_type', '=', $type]];
@@ -396,10 +426,30 @@ class Firewall extends Base
         }
 
         if ($defaultStore) {
-            return $this->firewallFiltersDefaultStore->insert($data);
+            $newFilter = $this->firewallFiltersDefaultStore->insert($data);
+
+            if ($newFilter) {
+                if ($newFilter['address_type'] === 'host') {
+                    $this->index->addToIndex($newFilter, true);
+                }
+            }
         } else {
-            return $this->firewallFiltersStore->insert($data);
+            $inDefaultFilter = $this->getFilterByAddress($data['address'], false, true);
+
+            if ($inDefaultFilter) {
+                $this->removeFilter($inDefaultFilter['id'], true);
+            }
+
+            $newFilter = $this->firewallFiltersStore->insert($data);
+
+            if ($newFilter) {
+                if ($newFilter['address_type'] === 'host') {
+                    $this->index->addToIndex($newFilter);
+                }
+            }
         }
+
+        return $newFilter;
     }
 
     public function updateFilter(array $data)
@@ -451,6 +501,12 @@ class Firewall extends Base
             $childFilters = $this->getFilterByParentId((int) $filter['id']);
 
             if ($childFilters && count($childFilters) > 0) {//Remove all childs
+                foreach ($childFilters as $childFilter) {
+                    if ($childFilter['address_type'] === 'host') {
+                        $this->index->removeFromIndex($childFilter['address']);
+                    }
+                }
+
                 $this->firewallFiltersStore->deleteBy(['parent_id', '=', (int) $filter['id']]);
             }
 
@@ -459,16 +515,30 @@ class Firewall extends Base
         }
 
         if ($defaultStore) {
-            return $this->firewallFiltersDefaultStore->deleteById((int) $filter['id']);
+            $deleteFilter = $this->firewallFiltersDefaultStore->deleteById((int) $filter['id']);
+
+            if ($deleteFilter) {
+                if ($filter['address_type'] === 'host') {
+                    $this->index->removeFromIndex($filter['address']);
+                }
+            }
         } else {
-            return $this->firewallFiltersStore->deleteById((int) $filter['id']);
+            $deleteFilter = $this->firewallFiltersStore->deleteById((int) $filter['id']);
+
+            if ($deleteFilter) {
+                if ($filter['address_type'] === 'host') {
+                    $this->index->removeFromIndex($filter['address']);
+                }
+            }
         }
+
+        return $deleteFilter;
     }
 
     protected function validateIP($address)
     {
         $ipv6 = false;
-        if (str_contains($address, ':')) {
+        if ($this->ipTools->isIpv6($address)) {
             $ipv6 = true;
         }
 
@@ -530,6 +600,23 @@ class Firewall extends Base
             $this->addResponse('Firewall is disabled. Everything is allowed!', 2);
 
             return true;
+        }
+
+        //Zero Check - We check Ip in Index
+        $this->setMicroTimer('indexCheckIpFilterStart', true);
+
+        $index = $this->index->searchIndex($ip);
+
+        if ($index && is_array($index) && count($index) === 2) {
+            $filter = $this->getFilterById($index[0], false, $index[1]);
+
+            if ($filter) {
+                $indexCheckIpFilter = $this->checkIPFilter($filter);
+
+                $this->setMicroTimer('indexCheckIpFilterEnd', true);
+
+                return $indexCheckIpFilter;
+            }
         }
 
         //First Check - We check HOST entries
@@ -943,136 +1030,28 @@ class Firewall extends Base
         return true;
     }
 
-    public function downloadGeodataFile()
+    public function exportFilters($defaultStore = false)
     {
-        $download = $this->downloadData(
-                'https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/countries%2Bstates%2Bcities.json',
-                fwbase_path('firewalldata/geodata/countries+states+cities.json')
-            );
-
-        if ($download) {
-            $this->processDownloadedGeodataFile($download);
-
-            return true;
-        }
-
-        $this->addResponse('Error downloading file', 1);
+        //
     }
 
-    public function processDownloadedGeodataFile($download, $trackCounter = null)
+    public function importFilters($defaultStore = false)
     {
-        if (!is_null($trackCounter)) {
-            $this->trackCounter = $trackCounter;
-        }
-
-        if ($this->trackCounter === 0) {
-            $this->addResponse('Error while downloading file: ' . $download->getBody()->getContents(), 1);
-
-            return false;
-        }
-
-        //Process Downloaded JSON File
-        try {
-            $this->setLocalContent(false, fwbase_path('firewalldata/geodata/'));
-
-            $jsonFile = $this->localContent->read('countries+states+cities.json');
-
-            $jsonFile = @json_decode($jsonFile, true);
-
-            foreach ($jsonFile as $country) {
-                $this->firewallGeoCountriesStore->updateOrInsert(
-                    [
-                        'id'            => $country['id'],
-                        'name'          => $country['name'],
-                        'country_code'  => $country['iso2'],
-                    ]
-                );
-
-                if (isset($country['states'])) {
-                    foreach ($country['states'] as $state) {
-                        $this->firewallGeoStatesStore->updateOrInsert(
-                            [
-                                'id'            => $state['id'],
-                                'name'          => $state['name'],
-                                'state_code'    => $state['state_code'],
-                                'country_id'    => $country['id'],
-                                'country_code'  => $country['iso2'],
-                            ]
-                        );
-
-                        if (isset($state['cities'])) {
-                            foreach ($state['cities'] as $city) {
-                                $this->firewallGeoCitiesStore->updateOrInsert(
-                                    [
-                                        'id'            => $city['id'],
-                                        'name'          => $city['name'],
-                                        'state_id'      => $state['id'],
-                                        'state_code'    => $state['state_code'],
-                                        'country_id'    => $country['id'],
-                                        'country_code'  => $country['iso2']
-                                    ]
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-
-            $this->setLocalContent();
-        } catch (\League\Flysystem\UnableToReadFile | \throwable | \League\Flysystem\FilesystemException $e) {
-            throw $e;
-        }
-
-        $this->setConfigGeodataDownloadDate();
-
-        $this->addResponse('Updated Geodata database.');
-
-        return true;
+        //
     }
 
-    public function geoGetCountries()
+    public function resetFiltersCache()
     {
-        $countries = $this->firewallGeoCountriesStore->findAll();
+        $cacheArr = [];
 
-        if ($countries) {
-            $this->addResponse('OK', 0, ['countries' => $countries]);
+        $cache = new Cache($this->firewallFiltersDefaultStore->getStorePath(), $cacheArr, null);
+        $cache->deleteAll();
 
-            return $countries;
-        }
+        $cache = new Cache($this->firewallFiltersStore->getStorePath(), $cacheArr, null);
+        $cache->deleteAll();
 
-        $this->addResponse('No countries found in database!', 1);
 
-        return false;
-    }
-
-    public function geoGetStates($countryCode)
-    {
-        $states = $this->firewallGeoStatesStore->findBy(['country_code', '=', strtoupper($countryCode)]);
-
-        if ($states) {
-            $this->addResponse('OK', 0, ['states' => $states]);
-
-            return $states;
-        }
-
-        $this->addResponse('No states found in database!', 1);
-
-        return false;
-    }
-
-    public function geoGetCities($countryCode, $stateCode)
-    {
-        $cities = $this->firewallGeoCitiesStore->findBy([['country_code', '=', strtoupper($countryCode)], ['state_code', '=', strtoupper($stateCode)]]);
-
-        if ($cities) {
-            $this->addResponse('OK', 0, ['cities' => $cities]);
-
-            return $cities;
-        }
-
-        $this->addResponse('No cities found in database!', 1);
-
-        return false;
+        $this->addResponse('Deleted all cache');
     }
 
     protected function bumpFilterHitCounter($filter, $defaultStore = false)
