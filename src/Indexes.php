@@ -6,7 +6,7 @@ use League\Flysystem\FilesystemException;
 use League\Flysystem\UnableToReadFile;
 use PHPFirewall\Firewall;
 
-class Index
+class Indexes
 {
     protected $firewall;
 
@@ -14,10 +14,10 @@ class Index
     {
         $this->firewall = $firewall;
 
-        $this->checkIndexPath();
+        $this->checkIndexesPath();
     }
 
-    public function searchIndex($ip)
+    public function searchIndexes($ip)
     {
         $this->firewall->setLocalContent(false, fwbase_path('firewalldata/indexes/'));
 
@@ -36,7 +36,7 @@ class Index
             $ipv4IndexPath = join('/', $ipv4IndexArr);
 
             try {
-                $file = $this->firewall->localContent->read($ipv4IndexPath . $ipv4Index . '.txt');
+                $file = $this->firewall->localContent->read($ipv4IndexPath . '/' . $ipv4Index . '.txt');
 
                 if ($file) {
                     $file = explode(':', $file);
@@ -62,7 +62,7 @@ class Index
             $ipv6IndexPath = join('/', $ipv6IndexArr);
 
             try {
-                $file = $this->firewall->localContent->write($ipv6IndexPath . $ipv6Index . '.txt');
+                $file = $this->firewall->localContent->write($ipv6IndexPath . '/' . $ipv6Index . '.txt');
 
                 if ($file) {
                     $file = explode(':', $file);
@@ -89,12 +89,12 @@ class Index
         return false;
     }
 
-    public function reindexFilters($deleteIndexes = false, $onlyDelete = false)
+    public function reindexFilters($deleteIndexes = false, $norebuild = false)
     {
         if ($deleteIndexes) {
             $this->deleteIndexes();
 
-            if ($onlyDelete) {
+            if ($norebuild) {
                 $this->firewall->addResponse('Deleted all host IP indexes');
 
                 return true;
@@ -132,7 +132,7 @@ class Index
                     $ipv4IndexPath = join('/', $ipv4IndexArr);
 
                     try {
-                        $this->firewall->localContent->write($ipv4IndexPath . $ipv4Index . '.txt', ($defaultStore === true ? 'd:' . $filter['id'] : $filter['id']));
+                        $this->firewall->localContent->write($ipv4IndexPath . '/' . $ipv4Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
                     } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
                         $this->firewall->addResponse($e->getMessage(), 1);
 
@@ -146,7 +146,7 @@ class Index
                     $ipv6IndexPath = join('/', $ipv6IndexArr);
 
                     try {
-                        $this->firewall->localContent->write($ipv6IndexPath . $ipv6Index . '.txt', ($defaultStore === true ? 'd:' . $filter['id'] : $filter['id']));
+                        $this->firewall->localContent->write($ipv6IndexPath . '/' . $ipv6Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
                     } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
                         $this->firewall->addResponse($e->getMessage(), 1);
 
@@ -163,7 +163,7 @@ class Index
         return true;
     }
 
-    protected function addToIndex($filter, $defaultStore = false)
+    public function addToIndex($filter, $defaultStore = false)
     {
         if (!$this->firewall->config['auto_indexing']) {
             return true;
@@ -172,7 +172,7 @@ class Index
         return $this->indexFilters([$filter], $defaultStore);
     }
 
-    protected function removeFromIndex($ip)
+    public function removeFromIndex($ip)
     {
         if (!$this->firewall->config['auto_indexing']) {
             return true;
@@ -246,14 +246,14 @@ class Index
             return false;
         }
 
-        $this->firewall->checkIndexPath();
+        $this->checkIndexesPath();
 
         $this->firewall->setLocalContent();
 
         return true;
     }
 
-    protected function checkIndexPath()
+    protected function checkIndexesPath()
     {
         if (!is_dir(fwbase_path($this->firewall->dataPath . 'indexes'))) {
             if (!mkdir(fwbase_path($this->firewall->dataPath . 'indexes'), 0777, true)) {

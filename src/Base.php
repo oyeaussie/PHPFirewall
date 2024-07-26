@@ -42,6 +42,8 @@ abstract class Base
 
     protected $microtime = 0;
 
+    protected $totalMicrotime = 0;
+
     protected $memoryusage = 0;
 
     protected $microTimers = [];
@@ -383,6 +385,11 @@ abstract class Base
         return $this->microTimers;
     }
 
+    public function getTotalMicrotimer()
+    {
+        return (microtime(true) - $this->totalMicrotime);
+    }
+
     public function downloadData($url, $sink)
     {
         $this->trackCounter = 0;
@@ -472,13 +479,17 @@ abstract class Base
     {
         $microtime['reference'] = $reference;
 
+        $now = microtime(true);
         if ($this->microtime === 0) {
             $microtime['difference'] = 0;
             $this->microtime = microtime(true);
         } else {
-            $now = microtime(true);
             $microtime['difference'] = $now - $this->microtime;
             $this->microtime = $now;
+        }
+
+        if (count($this->microTimers) === 0) {
+            $this->totalMicrotime = $now;
         }
 
         if ($calculateMemoryUsage) {

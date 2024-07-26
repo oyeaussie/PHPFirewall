@@ -13,7 +13,7 @@ use League\Flysystem\UnableToListContents;
 use League\Flysystem\UnableToWriteFile;
 use PHPFirewall\Base;
 use PHPFirewall\Geo;
-use PHPFirewall\Index;
+use PHPFirewall\Indexes;
 use Phalcon\Filter\Validation\Validator\Ip;
 use SleekDB\Cache;
 use SleekDB\Classes\IoHelper;
@@ -25,7 +25,7 @@ class Firewall extends Base
 
     public $geo;
 
-    public $index;
+    public $indexes;
 
     public function __construct($createRoot = false, $dataPath = null)
     {
@@ -35,7 +35,7 @@ class Firewall extends Base
 
         $this->geo = new Geo($this);
 
-        $this->index = new Index($this);
+        $this->indexes = new Indexes($this);
     }
 
     public function getFiltersCount($defaultStore = false)
@@ -430,7 +430,7 @@ class Firewall extends Base
 
             if ($newFilter) {
                 if ($newFilter['address_type'] === 'host') {
-                    $this->index->addToIndex($newFilter, true);
+                    $this->indexes->addToIndex($newFilter, true);
                 }
             }
         } else {
@@ -444,7 +444,7 @@ class Firewall extends Base
 
             if ($newFilter) {
                 if ($newFilter['address_type'] === 'host') {
-                    $this->index->addToIndex($newFilter);
+                    $this->indexes->addToIndex($newFilter);
                 }
             }
         }
@@ -503,7 +503,7 @@ class Firewall extends Base
             if ($childFilters && count($childFilters) > 0) {//Remove all childs
                 foreach ($childFilters as $childFilter) {
                     if ($childFilter['address_type'] === 'host') {
-                        $this->index->removeFromIndex($childFilter['address']);
+                        $this->indexes->removeFromIndex($childFilter['address']);
                     }
                 }
 
@@ -519,7 +519,7 @@ class Firewall extends Base
 
             if ($deleteFilter) {
                 if ($filter['address_type'] === 'host') {
-                    $this->index->removeFromIndex($filter['address']);
+                    $this->indexes->removeFromIndex($filter['address']);
                 }
             }
         } else {
@@ -527,12 +527,41 @@ class Firewall extends Base
 
             if ($deleteFilter) {
                 if ($filter['address_type'] === 'host') {
-                    $this->index->removeFromIndex($filter['address']);
+                    $this->indexes->removeFromIndex($filter['address']);
                 }
             }
         }
 
         return $deleteFilter;
+    }
+
+    public function moveFilter($id)//Move filter from default store to main store
+    {
+        if (!$filter = $this->getFilterById((int) $id, false, true)) {
+            $this->addResponse('Filter with ID ' . $id . ' does not exists in default data store.', 1);
+
+            return false;
+        }
+
+        $oldFilterId = $filter['id'];
+
+        unset($filter['id']);
+
+        $newFilter = $this->addFilter($filter);
+
+        if ($newFilter) {
+            $deleteFilter = $this->removeFilter($oldFilterId, true);
+            var_dump($deleteFilter);
+            if ($deleteFilter) {
+                $this->addResponse('Filter moved to main store. New ID: ' . $newFilter['id']);
+
+                return true;
+            }
+        }
+
+        $this->addResponse('Error moving filter', 1);
+
+        return false;
     }
 
     protected function validateIP($address)
@@ -603,19 +632,19 @@ class Firewall extends Base
         }
 
         //Zero Check - We check Ip in Index
-        $this->setMicroTimer('indexCheckIpFilterStart', true);
+        $this->setMicroTimer('indexesCheckIpFilterStart', true);
 
-        $index = $this->index->searchIndex($ip);
+        $indexes = $this->indexes->searchIndexes($ip);
 
-        if ($index && is_array($index) && count($index) === 2) {
-            $filter = $this->getFilterById($index[0], false, $index[1]);
+        if ($indexes && is_array($indexes) && count($indexes) === 2) {
+            $filter = $this->getFilterById($indexes[0], false, $indexes[1]);
 
             if ($filter) {
-                $indexCheckIpFilter = $this->checkIPFilter($filter);
+                $indexesCheckIpFilter = $this->checkIPFilter($filter);
 
-                $this->setMicroTimer('indexCheckIpFilterEnd', true);
+                $this->setMicroTimer('indexesCheckIpFilterEnd', true);
 
-                return $indexCheckIpFilter;
+                return $indexesCheckIpFilter;
             }
         }
 
@@ -730,6 +759,8 @@ class Firewall extends Base
         }
 
         //Forth - We check DEFAULT entries
+        $this->setMicroTimer('defaultCheckIpFilterStart', true);
+
         $this->config['default_filter_hit_count'] = (int) $this->config['default_filter_hit_count'] + 1;
 
         $this->updateConfig($this->config);
@@ -748,6 +779,8 @@ class Firewall extends Base
             $newFilter['filter_type'] = $this->config['default_filter'];
             $this->addFilter($newFilter, true);
         }
+
+        $this->setMicroTimer('defaultCheckIpFilterEnd', true);
 
         if ($this->config['default_filter'] === 'allow') {
             $this->addResponse('Allowed by default firewall filter', 0);
