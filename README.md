@@ -1,5 +1,5 @@
 <h2>Description:</h2>
-PHPFirewall is a tool to allow/block connections to your application using IP address. The IP address details are either retrieved from local database (ip2location lite) or by making a call to IP2Location.io IP Geolocation API
+PHPFirewall is a tool to allow/block connections to your web resource using IP address. The IP address details are either retrieved from local database or by making a API calls to IP2Location.io
 
 <h2>Documentation:</h2>
 

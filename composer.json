@@ -6,7 +6,12 @@
         "php",
         "terminal",
         "firewall",
+        "php firewall",
         "ip filter",
+        "ip address",
+        "ip2location",
+        "ip2location.io",
+        "ip2location api",
         "ip address filtering"
     ],
     "authors":
@@ -32,12 +37,18 @@
     {
         "php": "^7.2.5 || ^8.0",
         "ext-json": "*",
+        "ext-bcmath": "*",
+        "ext-curl": "*",
         "phpterminal/phpterminal": "*",
         "phpterminal/phpterminal-modules-firewall": "*",
         "phpterminal/phpterminal-plugins-auth": "*",
         "symfony/http-foundation" : "*",
         "ip2location/ip2location-php": "^9.7",
-        "league/csv": "^9.16.0"
+        "league/csv": "^9.16.0",
+        "rakibtg/sleekdb": "*",
+        "nesbot/carbon": "*",
+        "guzzlehttp/guzzle": "^7.8",
+        "league/flysystem": "^3.28"
     },
     "autoload":
     {
