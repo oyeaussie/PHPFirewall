@@ -17,9 +17,17 @@ class Geo
 
     protected $firewallGeoCitiesStore;
 
+    protected $dataPath;
+
     public function __construct(Firewall $firewall)
     {
         $this->firewall = $firewall;
+
+        if (str_contains(__DIR__, '/vendor/')) {
+            $this->dataPath = $this->firewall->dataPath . 'geodata';
+        } else {
+            $this->dataPath = fwbase_path($this->firewall->dataPath . 'geodata');
+        }
 
         $this->checkGeoPath();
 
@@ -76,7 +84,7 @@ class Geo
     {
         $download = $this->firewall->downloadData(
                 'https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/countries%2Bstates%2Bcities.json',
-                fwbase_path('firewalldata/geodata/countries+states+cities.json')
+                $this->dataPath . '/countries+states+cities.json'
             );
 
         if ($download) {
@@ -108,7 +116,7 @@ class Geo
 
         //Process Downloaded JSON File
         try {
-            $this->firewall->setLocalContent(false, fwbase_path('firewalldata/geodata/'));
+            $this->firewall->setLocalContent(false, $this->dataPath);
 
             $jsonFile = $this->firewall->localContent->read('countries+states+cities.json');
 
@@ -200,14 +208,8 @@ class Geo
 
     protected function checkGeoPath()
     {
-        if (str_contains(__DIR__, '/vendor/')) {
-            $dataPath = $this->firewall->dataPath . 'geodata';
-        } else {
-            $dataPath = fwbase_path($this->firewall->dataPath . 'geodata');
-        }
-
-        if (!is_dir($dataPath)) {
-            if (!mkdir($dataPath, 0777, true)) {
+        if (!is_dir($this->dataPath)) {
+            if (!mkdir($this->dataPath, 0777, true)) {
                 return false;
             }
         }

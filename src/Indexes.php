@@ -10,16 +10,24 @@ class Indexes
 {
     protected $firewall;
 
+    protected $dataPath;
+
     public function __construct(Firewall $firewall)
     {
         $this->firewall = $firewall;
+
+        if (str_contains(__DIR__, '/vendor/')) {
+            $this->dataPath = $this->firewall->dataPath . 'indexes';
+        } else {
+            $this->dataPath = fwbase_path($this->firewall->dataPath . 'indexes');
+        }
 
         $this->checkIndexesPath();
     }
 
     public function searchIndexes($ip)
     {
-        $this->firewall->setLocalContent(false, fwbase_path('firewalldata/indexes/'));
+        $this->firewall->setLocalContent(false, $this->dataPath);
 
         $ipv4Index = null;
         $ipv6Index = null;
@@ -109,7 +117,7 @@ class Indexes
 
     protected function indexFilters($filters, $defaultStore = false)
     {
-        $this->firewall->setLocalContent(false, fwbase_path('firewalldata/indexes/'));
+        $this->firewall->setLocalContent(false, $this->dataPath);
 
         if ($filters && count($filters) > 0) {
             foreach ($filters as $filter) {
@@ -174,7 +182,7 @@ class Indexes
             return true;
         }
 
-        $this->firewall->setLocalContent(false, fwbase_path('firewalldata/indexes/'));
+        $this->firewall->setLocalContent(false, $this->dataPath);
 
         $ipv4Index = null;
         $ipv6Index = null;
@@ -230,7 +238,7 @@ class Indexes
 
     protected function deleteIndexes()
     {
-        $this->firewall->setLocalContent(false, fwbase_path('firewalldata/'));
+        $this->firewall->setLocalContent(false, $this->dataPath . '/../');
 
         try {
             $this->firewall->localContent->deleteDirectory('indexes/');
@@ -251,14 +259,8 @@ class Indexes
 
     protected function checkIndexesPath()
     {
-        if (str_contains(__DIR__, '/vendor/')) {
-            $dataPath = $this->firewall->dataPath . 'indexes';
-        } else {
-            $dataPath = fwbase_path($this->firewall->dataPath . 'indexes');
-        }
-
-        if (!is_dir($dataPath)) {
-            if (!mkdir($dataPath, 0777, true)) {
+        if (!is_dir($this->dataPath)) {
+            if (!mkdir($this->dataPath, 0777, true)) {
                 return false;
             }
         }
