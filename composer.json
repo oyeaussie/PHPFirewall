@@ -33,10 +33,10 @@
         "php": "^7.2.5 || ^8.0",
         "ext-json": "*",
         "phpterminal/phpterminal": "*",
-        "phpterminal/phpterminal-plugins-auth": "*",
         "phpterminal/phpterminal-modules-firewall": "*",
+        "phpterminal/phpterminal-plugins-auth": "*",
         "symfony/http-foundation" : "*",
-        "ip2location/ip2location-php": "^8.3"
+        "ip2location/ip2location-php": "^9.7"
     },
     "autoload":
     {
