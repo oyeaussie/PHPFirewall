@@ -565,20 +565,26 @@ abstract class Base
 
     protected function checkFirewallPath()
     {
-        if (!is_dir(fwbase_path($this->dataPath))) {
-            if (!mkdir(fwbase_path($this->dataPath), 0777, true)) {
+        if (str_contains(__DIR__, '/vendor/')) {
+            $dataPath = $this->dataPath;
+        } else {
+            $dataPath = fwbase_path($this->dataPath);
+        }
+
+        if (!is_dir($dataPath)) {
+            if (!mkdir($dataPath, 0777, true)) {
                 return false;
             }
         }
 
-        if (!is_dir(fwbase_path($this->dataPath . 'backup'))) {
-            if (!mkdir(fwbase_path($this->dataPath . 'backup'), 0777, true)) {
+        if (!is_dir($dataPath . 'backup')) {
+            if (!mkdir($dataPath . 'backup', 0777, true)) {
                 return false;
             }
         }
 
-        if (!is_dir(fwbase_path($this->dataPath . 'ip2locationdata'))) {
-            if (!mkdir(fwbase_path($this->dataPath . 'ip2locationdata'), 0777, true)) {
+        if (!is_dir($dataPath . 'ip2locationdata')) {
+            if (!mkdir($dataPath . 'ip2locationdata', 0777, true)) {
                 return false;
             }
         }
