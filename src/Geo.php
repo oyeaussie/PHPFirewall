@@ -200,8 +200,14 @@ class Geo
 
     protected function checkGeoPath()
     {
-        if (!is_dir(fwbase_path($this->firewall->dataPath . 'geodata'))) {
-            if (!mkdir(fwbase_path($this->firewall->dataPath . 'geodata'), 0777, true)) {
+        if (str_contains(__DIR__, '/vendor/')) {
+            $dataPath = $this->firewall->dataPath . 'geodata';
+        } else {
+            $dataPath = fwbase_path($this->firewall->dataPath . 'geodata');
+        }
+
+        if (!is_dir($dataPath)) {
+            if (!mkdir($dataPath, 0777, true)) {
                 return false;
             }
         }

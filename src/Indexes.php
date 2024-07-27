@@ -251,8 +251,14 @@ class Indexes
 
     protected function checkIndexesPath()
     {
-        if (!is_dir(fwbase_path($this->firewall->dataPath . 'indexes'))) {
-            if (!mkdir(fwbase_path($this->firewall->dataPath . 'indexes'), 0777, true)) {
+        if (str_contains(__DIR__, '/vendor/')) {
+            $dataPath = $this->firewall->dataPath . 'indexes';
+        } else {
+            $dataPath = fwbase_path($this->firewall->dataPath . 'indexes');
+        }
+
+        if (!is_dir($dataPath)) {
+            if (!mkdir($dataPath, 0777, true)) {
                 return false;
             }
         }
