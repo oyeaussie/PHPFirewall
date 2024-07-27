@@ -103,8 +103,6 @@ abstract class Base
 
         $this->firewallFiltersIp2locationStore = new Store("firewall_filters_ip2location", $this->databaseDirectory, $this->storeConfiguration);
 
-        $this->getConfig();
-
         if (!$this->config) {
             $this->config = $this->firewallConfigStore->updateOrInsert(
                 [
@@ -128,6 +126,8 @@ abstract class Base
                 ]
             );
         }
+
+        $this->getConfig();
     }
 
     public function getFirewallConfig()
