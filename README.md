@@ -9,10 +9,14 @@ PHPFirewall is a tool to allow/block connections to your web resource using IP a
 Thanks to the following projects for their great work. Without them, this project would not be possible.<br>
 
 Composer<br>
+Symphony Http Foundation<br>
+Ip2location.io - https://www.ip2location.io/
+Ip2location PHP Module - https://github.com/chrislim2888/IP2Location-PHP-Module
 Guzzle - https://github.com/guzzle/guzzle<br>
 Flysystem - https://github.com/thephpleague/flysystem<br>
-PHP Cli Tools - https://github.com/wp-cli/php-cli-tools<br>
 SleekDB - https://github.com/SleekDB/SleekDB<br>
+The PHP League CSV - https://github.com/thephpleague/csv
+Carbon Date : https://carbon.nesbot.com/
 
 <h2>Issues/Discussions/New features:</h2>
 Feel free to open an issue in case of a bug or to discuss anything related to the tool or to add a new feature.
