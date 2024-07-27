@@ -4,8 +4,12 @@ namespace PHPFirewall;
 
 use Carbon\Carbon;
 use GuzzleHttp\Client;
+use League\Csv\Reader;
+use League\Csv\Writer;
 use League\Flysystem\Filesystem;
+use League\Flysystem\FilesystemException;
 use League\Flysystem\Local\LocalFilesystemAdapter;
+use League\Flysystem\UnableToWriteFile;
 use PHPFirewall\Response;
 use SleekDB\Store;
 use cli\progress\Bar;
@@ -458,10 +462,117 @@ abstract class Base
         return false;
     }
 
+    public function exportFilters()
+    {
+        $csv = Writer::createFromString();
+
+        $header = [
+            "filter_store","filter_type","address_type","address","updated_by","updated_at","hit_count","parent_id","id"
+        ];
+
+        $csv->insertOne($header);
+
+        $filters = $this->firewallFiltersStore->findAll();
+
+        if ($filters && count($filters) > 0) {
+            array_walk($filters, function(&$filter)  use ($header) {
+                $filter['filter_store'] = 'main';
+                $filter = array_replace(array_flip($header), $filter);
+            });
+        }
+
+        $csv->insertAll($filters);
+
+        $filters = $this->firewallFiltersDefaultStore->findAll();
+
+        if ($filters && count($filters) > 0) {
+            array_walk($filters, function(&$filter)  use ($header) {
+                $filter['filter_store'] = 'default';
+                $filter = array_replace(array_flip($header), $filter);
+            });
+        }
+
+        $csv->insertAll($filters);
+
+        $this->setLocalContent(false, fwbase_path('firewalldata/backup/'));
+
+        try {
+            $fileName = time() . '-backup.csv';
+            $this->localContent->write($fileName, $csv->toString());
+
+            $this->addResponse('Backup complete! CSV file available at location ' . fwbase_path('firewalldata/backup/') . $fileName);
+
+            $this->setLocalContent();
+
+            return true;
+        } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
+            $this->addResponse($e->getMessage(), 1);
+        }
+
+        $this->setLocalContent();
+
+        return false;
+    }
+
+    public function importFilters($fileName)
+    {
+        try {
+            $csv = Reader::createFromPath(fwbase_path('firewalldata/backup/' . $fileName), 'r');
+
+            $csv->setHeaderOffset(0);
+
+            $header = $csv->getHeader();
+
+            $records = $csv->getRecords();
+
+            $totalCount = $csv->count();
+
+            $insertCount = 0;
+            $errorRecords = [];
+
+            if ($csv->count() > 0) {
+                foreach ($records as $recordIndex => $record) {
+                    $insert = false;
+                    if (isset($record['filter_store']) && $record['filter_store'] === 'main') {
+                        $insert = $this->firewallFiltersStore->updateOrInsert($record, true);
+                    } else if (isset($record['filter_store']) && $record['filter_store'] === 'default') {
+                        $insert = $this->firewallFiltersDefaultStore->updateOrInsert($record, true);
+                    } else {
+                        $errorRecords[$recordIndex] = $record;
+                    }
+
+                    if ($insert) {
+                        $insertCount++;
+                    }
+                }
+            }
+
+            if ($insertCount === $totalCount) {
+                $this->addResponse('Successfully restored ' . $insertCount . '/' . $totalCount . ' filters into the database.', 0, []);
+            } else if (count($errorRecords) > 0) {
+                $this->addResponse('Restored ' . $insertCount . '/' . $totalCount . ' filters into the database. Please check your CSV file.', 2, ['errors_on_line' => $errorRecords]);
+            } else {
+                $this->addResponse('Restored ' . $insertCount . '/' . $totalCount . ' filters into the database. Please check your csv file.', 2, []);
+            }
+
+            return true;
+        } catch (\throwable $e) {
+            $this->addResponse($e->getMessage(), 1);
+        }
+
+        return false;
+    }
+
     protected function checkFirewallPath()
     {
         if (!is_dir(fwbase_path($this->dataPath))) {
             if (!mkdir(fwbase_path($this->dataPath), 0777, true)) {
+                return false;
+            }
+        }
+
+        if (!is_dir(fwbase_path($this->dataPath . 'backup'))) {
+            if (!mkdir(fwbase_path($this->dataPath . 'backup'), 0777, true)) {
                 return false;
             }
         }

@@ -46,15 +46,13 @@ class Indexes
                             return [$file[0], true];
                         }
 
+                        $this->firewall->setLocalContent();
+
                         return [$file[0], false];
                     }
                 }
-
-                return false;
             } catch (\throwable | UnableToReadFile | FilesystemException $e) {
-                $this->firewall->setLocalContent();
-
-                return false;
+                $this->firewall->addResponse($e->getMessage(), 1);
             }
         } else if ($ipv6Index) {
             $ipv6IndexArr = str_split($ipv6Index, 10);
@@ -72,15 +70,13 @@ class Indexes
                             return [$file[0], true];
                         }
 
+                        $this->firewall->setLocalContent();
+
                         return [$file[0], false];
                     }
                 }
-
-                return false;
             } catch (\throwable | UnableToReadFile | FilesystemException $e) {
-                $this->firewall->setLocalContent();
-
-                return false;
+                $this->firewall->addResponse($e->getMessage(), 1);
             }
         }
 
@@ -133,12 +129,12 @@ class Indexes
 
                     try {
                         $this->firewall->localContent->write($ipv4IndexPath . '/' . $ipv4Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
-                    } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
-                        $this->firewall->addResponse($e->getMessage(), 1);
 
                         $this->firewall->setLocalContent();
 
-                        return false;
+                        return true;
+                    } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
+                        $this->firewall->addResponse($e->getMessage(), 1);
                     }
                 } else if ($ipv6Index) {
                     $ipv6IndexArr = str_split($ipv6Index, 10);
@@ -147,12 +143,12 @@ class Indexes
 
                     try {
                         $this->firewall->localContent->write($ipv6IndexPath . '/' . $ipv6Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
-                    } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
-                        $this->firewall->addResponse($e->getMessage(), 1);
 
                         $this->firewall->setLocalContent();
 
-                        return false;
+                        return true;
+                    } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
+                        $this->firewall->addResponse($e->getMessage(), 1);
                     }
                 }
             }
@@ -160,7 +156,7 @@ class Indexes
 
         $this->firewall->setLocalContent();
 
-        return true;
+        return false;
     }
 
     public function addToIndex($filter, $defaultStore = false)
@@ -200,12 +196,12 @@ class Indexes
                 if ($file) {
                     $this->firewall->localContent->delete($ipv4IndexPath . $ipv4Index . '.txt');
 
+                    $this->firewall->setLocalContent();
+
                     return true;
                 }
             } catch (\throwable | UnableToReadFile | FilesystemException $e) {
-                $this->firewall->setLocalContent();
-
-                return false;
+                $this->firewall->addResponse($e->getMessage(), 1);
             }
         } else if ($ipv6Index) {
             $ipv6IndexArr = str_split($ipv6Index, 10);
@@ -218,12 +214,12 @@ class Indexes
                 if ($file) {
                     $this->firewall->localContent->delete($ipv6IndexPath . $ipv6Index . '.txt');
 
+                    $this->firewall->setLocalContent();
+
                     return true;
                 }
             } catch (\throwable | UnableToReadFile | FilesystemException $e) {
-                $this->firewall->setLocalContent();
-
-                return false;
+                $this->firewall->addResponse($e->getMessage(), 1);
             }
         }
 
@@ -238,19 +234,19 @@ class Indexes
 
         try {
             $this->firewall->localContent->deleteDirectory('indexes/');
-        } catch (\throwable | UnableToDeleteDirectory | FilesystemException $e) {
-            $this->firewall->addResponse($e->getMessage(), 1);
+
+            $this->checkIndexesPath();
 
             $this->firewall->setLocalContent();
 
-            return false;
+            return true;
+        } catch (\throwable | UnableToDeleteDirectory | FilesystemException $e) {
+            $this->firewall->addResponse($e->getMessage(), 1);
         }
-
-        $this->checkIndexesPath();
 
         $this->firewall->setLocalContent();
 
-        return true;
+        return false;
     }
 
     protected function checkIndexesPath()

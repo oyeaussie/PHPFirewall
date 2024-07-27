@@ -36,7 +36,8 @@
         "phpterminal/phpterminal-modules-firewall": "*",
         "phpterminal/phpterminal-plugins-auth": "*",
         "symfony/http-foundation" : "*",
-        "ip2location/ip2location-php": "^9.7"
+        "ip2location/ip2location-php": "^9.7",
+        "league/csv": "^9.16.0"
     },
     "autoload":
     {

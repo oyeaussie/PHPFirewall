@@ -1063,16 +1063,6 @@ class Firewall extends Base
         return true;
     }
 
-    public function exportFilters($defaultStore = false)
-    {
-        //
-    }
-
-    public function importFilters($defaultStore = false)
-    {
-        //
-    }
-
     public function resetFiltersCache()
     {
         $cacheArr = [];
