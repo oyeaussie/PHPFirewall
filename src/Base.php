@@ -95,6 +95,8 @@ abstract class Base
 
         $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
 
+        $this->getConfig();
+
         if (!$this->config) {
             $this->config = $this->firewallConfigStore->updateOrInsert(
                 [
@@ -118,8 +120,6 @@ abstract class Base
                 ]
             );
         }
-
-        $this->getConfig();
     }
 
     public function getFirewallConfig()
@@ -136,6 +136,10 @@ abstract class Base
     protected function getConfig()
     {
         $this->config = $this->firewallConfigStore->findById(1);
+
+        if (!$this->config) {
+            return false;
+        }
 
         if ($this->config['ip2location_bin_download_date']) {
             $this->config['ip2location_bin_download_date'] = (Carbon::parse($this->config['ip2location_bin_download_date']))->toDateTimeString();
