@@ -592,7 +592,11 @@ abstract class Base
 
     protected function setMicroTimer($reference, $calculateMemoryUsage = false)
     {
-        $microtime['reference'] = $reference;
+        if (isset($this->microTimers[$reference])) {
+            $microtime = $this->microTimers[$reference];
+        } else {
+            $microtime['reference'] = $reference;
+        }
 
         $now = microtime(true);
         if ($this->microtime === 0) {
@@ -618,7 +622,7 @@ abstract class Base
             }
         }
 
-        array_push($this->microTimers, $microtime);
+        $this->microTimers[$reference] = $microtime;
     }
 
     protected function getMemUsage($bytes)
