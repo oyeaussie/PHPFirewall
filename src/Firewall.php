@@ -571,10 +571,19 @@ class Firewall extends Base
             return false;
         }
 
-        if (!filter_var($address, FILTER_VALIDATE_IP, ($ipv6 ? FILTER_FLAG_IPV6 : NULL))) {
-            $this->addResponse('Please enter correct ip address', 1);
+        if ($ipv6) {
+            if (!filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                $this->addResponse('Please enter correct ip address', 1);
 
-            return false;
+                return false;
+            }
+        } else {
+            if (!filter_var($address, FILTER_VALIDATE_IP)) {
+                $this->addResponse('Please enter correct ip address', 1);
+
+                return false;
+            }
+
         }
 
         $allow_private_range = true;
@@ -584,10 +593,13 @@ class Firewall extends Base
         ) {
             $allow_private_range = false;
         }
-        if (!filter_var($address, FILTER_VALIDATE_IP, (!$allow_private_range ? FILTER_FLAG_NO_PRIV_RANGE : NULL))) {
-            $this->addResponse('Please enter correct ip address, private range is not allowed.', 1);
 
-            return false;
+        if (!$allow_private_range) {
+            if (!filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE)) {
+                $this->addResponse('Please enter correct ip address, private range is not allowed.', 1);
+
+                return false;
+            }
         }
 
         $allow_reserved_range = true;
@@ -597,10 +609,13 @@ class Firewall extends Base
         ) {
             $allow_reserved_range = false;
         }
-        if (!filter_var($address, FILTER_VALIDATE_IP, (!$allow_reserved_range ? FILTER_FLAG_NO_RES_RANGE : NULL))) {
-            $this->addResponse('Please enter correct ip address, reserved range is not allowed.', 1);
 
-            return false;
+        if (!$allow_private_range) {
+            if (!filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE)) {
+                $this->addResponse('Please enter correct ip address, reserved range is not allowed.', 1);
+
+                return false;
+            }
         }
 
         return true;
