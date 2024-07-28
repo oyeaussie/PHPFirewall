@@ -9,6 +9,8 @@ use SleekDB\Store;
 
 class Geo
 {
+    public $dataPath;
+
     protected $firewall;
 
     protected $firewallGeoCountriesStore;
@@ -16,8 +18,6 @@ class Geo
     protected $firewallGeoStatesStore;
 
     protected $firewallGeoCitiesStore;
-
-    protected $dataPath;
 
     public function __construct(Firewall $firewall)
     {

@@ -40,10 +40,6 @@ abstract class Base
 
     protected $firewallFiltersDefaultStore;
 
-    protected $firewallFiltersIp2locationStore;
-
-    protected $ip2locationPath;
-
     protected $microtime = 0;
 
     protected $totalMicrotime = 0;
@@ -59,8 +55,6 @@ abstract class Base
         if (!$this->dataPath) {
             $this->dataPath = str_contains(__DIR__, '/vendor/') ? __DIR__ . '/../../../../firewalldata/' : 'firewalldata/';
         }
-
-        $this->ip2locationPath = $this->dataPath . 'ip2location/';
 
         $this->checkFirewallPath();
 
@@ -100,8 +94,6 @@ abstract class Base
         $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
 
         $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
-
-        $this->firewallFiltersIp2locationStore = new Store("firewall_filters_ip2location", $this->databaseDirectory, $this->storeConfiguration);
 
         if (!$this->config) {
             $this->config = $this->firewallConfigStore->updateOrInsert(
@@ -579,12 +571,6 @@ abstract class Base
 
         if (!is_dir($dataPath . 'backup')) {
             if (!mkdir($dataPath . 'backup', 0777, true)) {
-                return false;
-            }
-        }
-
-        if (!is_dir($dataPath . 'ip2locationdata')) {
-            if (!mkdir($dataPath . 'ip2locationdata', 0777, true)) {
                 return false;
             }
         }

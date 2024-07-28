@@ -3,39 +3,31 @@
 namespace PHPFirewall;
 
 use Carbon\Carbon;
-use IP2Location\IpTools;
-use League\Flysystem\DirectoryAttributes;
-use League\Flysystem\FileAttributes;
-use League\Flysystem\FilesystemException;
-use League\Flysystem\UnableToDeleteDirectory;
-use League\Flysystem\UnableToDeleteFile;
-use League\Flysystem\UnableToListContents;
-use League\Flysystem\UnableToWriteFile;
 use PHPFirewall\Base;
 use PHPFirewall\Geo;
 use PHPFirewall\Indexes;
-use Phalcon\Filter\Validation\Validator\Ip;
+use PHPFirewall\Ip2location;
 use SleekDB\Cache;
 use SleekDB\Classes\IoHelper;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 class Firewall extends Base
 {
-    public $ipTools;
-
     public $geo;
 
     public $indexes;
 
+    public $ip2location;
+
     public function __construct($createRoot = false, $dataPath = null)
     {
-        $this->ipTools = new IpTools;
-
         parent::__construct($createRoot, $dataPath);
 
         $this->geo = new Geo($this);
 
         $this->indexes = new Indexes($this);
+
+        $this->ip2location = new Ip2location($this);
     }
 
     public function getFiltersCount($defaultStore = false)
@@ -567,7 +559,7 @@ class Firewall extends Base
     protected function validateIP($address)
     {
         $ipv6 = false;
-        if ($this->ipTools->isIpv6($address)) {
+        if ($this->ip2location->ipTools->isIpv6($address)) {
             $ipv6 = true;
         }
 
@@ -795,83 +787,6 @@ class Firewall extends Base
         return true;
     }
 
-    public function getIpDetailsFromIp2locationBIN($ip)
-    {
-        if (!$this->checkIPIsPublic($ip)) {
-            return false;
-        }
-
-        try {
-            $ip2locationBin =
-                new \IP2Location\Database(
-                    fwbase_path($this->dataPath . 'ip2locationdata/' . $this->config['ip2location_bin_file_code'] . '.BIN'),
-                    constant('\IP2Location\Database::' . $this->config['ip2location_bin_access_mode'])
-                );
-        } catch (\Exception $e) {
-            //Log it to logger here.
-            return false;
-        }
-
-        $recordArr = $ip2locationBin->lookup($ip, \IP2Location\Database::ALL);
-
-        if ($recordArr) {
-            $record['ip'] = $ip;
-            $record['country_code'] = $recordArr['countryCode'];
-            $record['country_name'] = $recordArr['countryName'];
-            $record['region_name'] = $recordArr['regionName'];
-            $record['city_name'] = $recordArr['cityName'];
-
-            return $record;
-        }
-
-        return false;
-    }
-
-    public function getIpDetailsFromIp2locationAPI($ip)
-    {
-        if (!$this->checkIPIsPublic($ip)) {
-            return false;
-        }
-
-        $firewallFiltersIp2locationStoreEntry = $this->firewallFiltersIp2locationStore->findBy(['ip', '=', $ip]);
-
-        if ($firewallFiltersIp2locationStoreEntry && isset($firewallFiltersIp2locationStoreEntry[0])) {
-            $this->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $firewallFiltersIp2locationStoreEntry[0]]);
-
-            return $firewallFiltersIp2locationStoreEntry[0];
-        }
-
-        if (isset($this->config['ip2location_io_api_key']) &&
-            $this->config['ip2location_io_api_key'] !== ''
-        ) {
-            try {
-                $apiCallResponse = $this->remoteWebContent->get('https://api.ip2location.io/?key=' . $this->config['ip2location_io_api_key'] . '&ip=' . $ip);
-
-                if ($apiCallResponse && $apiCallResponse->getStatusCode() === 200) {
-                    $response = $apiCallResponse->getBody()->getContents();
-
-                    $response = json_decode($response, true);
-
-                    $ipDetails['ip'] = $response['ip'];
-                    $ipDetails['country_code'] = $response['country_code'];
-                    $ipDetails['region_name'] = $response['region_name'];
-                    $ipDetails['city_name'] = $response['city_name'];
-
-                    $this->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $ipDetails]);
-
-                    return $response;
-                } else {
-                    throw new \Exception('Lookup failed because of code : ' . $apiCallResponse->getStatusCode());
-                }
-            } catch (\throwable $e) {
-                //Log to logger here
-                return false;
-            }
-        }
-
-        return false;
-    }
-
     protected function checkIPIsPublic($ip)
     {
         if ($this->validateIP($ip)) {
@@ -988,79 +903,6 @@ class Firewall extends Base
         $filter['filter_type'] = 'allow';
 
         $this->firewallFiltersStore->update($filter);
-    }
-
-    public function downloadBinFile()
-    {
-        $download = $this->downloadData(
-                'https://www.ip2location.com/download/?token=' . $this->config['ip2location_api_key'] . '&file=' . $this->config['ip2location_bin_file_code'],
-                fwbase_path('firewalldata/ip2locationdata/' . $this->config['ip2location_bin_file_code'] . '.ZIP')
-            );
-
-        if ($download) {
-            $this->processDownloadedBinFile($download);
-
-            return true;
-        }
-
-        $this->addResponse('Error downloading file', 1);
-    }
-
-    public function processDownloadedBinFile($download, $trackCounter = null)
-    {
-        if (!is_null($trackCounter)) {
-            $this->trackCounter = $trackCounter;
-        }
-
-        if ($this->trackCounter === 0) {
-            $this->addResponse('Error while downloading file: ' . $download->getBody()->getContents(), 1);
-
-            return false;
-        }
-
-        //Extract here.
-        $zip = new \ZipArchive;
-
-        if ($zip->open(fwbase_path('firewalldata/ip2locationdata/DB3LITEBINIPV6.ZIP')) === true) {
-            $zip->extractTo(fwbase_path('firewalldata/ip2locationdata/'));
-
-            $zip->close();
-        }
-
-        //Rename file to the bin file code name.
-        try {
-            $this->setLocalContent(false, fwbase_path('firewalldata/ip2locationdata/'));
-
-            $folderContents = $this->localContent->listContents('');
-
-            $renamedFile = false;
-
-            foreach ($folderContents as $key => $content) {
-                if ($content instanceof \League\Flysystem\FileAttributes) {
-                    if (str_contains($content->path(), '.BIN')) {
-                        $this->localContent->move($content->path(), $this->config['ip2location_bin_file_code'] . '.BIN');
-
-                        $renamedFile = true;
-
-                        break;
-                    }
-                }
-            }
-
-            if (!$renamedFile){
-                throw new \Exception('ip2locationdata has no files');
-            }
-
-            $this->setLocalContent();
-        } catch (\League\Flysystem\UnableToListContents | \throwable | \League\Flysystem\UnableToMoveFile | \League\Flysystem\FilesystemException $e) {
-            throw $e;
-        }
-
-        $this->setConfigIp2locationBinDownloadDate();
-
-        $this->addResponse('Updated ip2location bin file.');
-
-        return true;
     }
 
     public function resetFiltersCache()

@@ -8,9 +8,9 @@ use PHPFirewall\Firewall;
 
 class Indexes
 {
-    protected $firewall;
+    public $dataPath;
 
-    protected $dataPath;
+    protected $firewall;
 
     public function __construct(Firewall $firewall)
     {
@@ -32,10 +32,10 @@ class Indexes
         $ipv4Index = null;
         $ipv6Index = null;
 
-        if ($this->firewall->ipTools->isIpv4($ip)) {
-            $ipv4Index = $this->firewall->ipTools->ipv4ToDecimal($ip);
-        } else if ($this->firewall->ipTools->isIpv6($ip)) {
-            $ipv6Index = $this->firewall->ipTools->ipv6ToDecimal($ip);
+        if ($this->firewall->ip2location->ipTools->isIpv4($ip)) {
+            $ipv4Index = $this->firewall->ip2location->ipTools->ipv4ToDecimal($ip);
+        } else if ($this->firewall->ip2location->ipTools->isIpv6($ip)) {
+            $ipv6Index = $this->firewall->ip2location->ipTools->ipv6ToDecimal($ip);
         }
 
         if ($ipv4Index) {
@@ -124,10 +124,10 @@ class Indexes
                 $ipv4Index = null;
                 $ipv6Index = null;
 
-                if ($this->firewall->ipTools->isIpv4($filter['address'])) {
-                    $ipv4Index = $this->firewall->ipTools->ipv4ToDecimal($filter['address']);
-                } else if ($this->firewall->ipTools->isIpv6($filter['address'])) {
-                    $ipv6Index = $this->firewall->ipTools->ipv6ToDecimal($filter['address']);
+                if ($this->firewall->ip2location->ipTools->isIpv4($filter['address'])) {
+                    $ipv4Index = $this->firewall->ip2location->ipTools->ipv4ToDecimal($filter['address']);
+                } else if ($this->firewall->ip2location->ipTools->isIpv6($filter['address'])) {
+                    $ipv6Index = $this->firewall->ip2location->ipTools->ipv6ToDecimal($filter['address']);
                 }
 
                 if ($ipv4Index) {
@@ -187,10 +187,10 @@ class Indexes
         $ipv4Index = null;
         $ipv6Index = null;
 
-        if ($this->firewall->ipTools->isIpv4($ip)) {
-            $ipv4Index = $this->firewall->ipTools->ipv4ToDecimal($ip);
-        } else if ($this->firewall->ipTools->isIpv6($ip)) {
-            $ipv6Index = $this->firewall->ipTools->ipv6ToDecimal($ip);
+        if ($this->firewall->ip2location->ipTools->isIpv4($ip)) {
+            $ipv4Index = $this->firewall->ip2location->ipTools->ipv4ToDecimal($ip);
+        } else if ($this->firewall->ip2location->ipTools->isIpv6($ip)) {
+            $ipv6Index = $this->firewall->ip2location->ipTools->ipv6ToDecimal($ip);
         }
 
         if ($ipv4Index) {
