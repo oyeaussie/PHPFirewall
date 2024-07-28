@@ -503,7 +503,7 @@ class Firewall extends Base
             }
 
             //Remove all ip2location database for the filter
-            $ip2locationEntries = $this->firewallFiltersIp2locationStore->deleteBy(['filter_id', '=', (int) $filter['id']]);
+            $ip2locationEntries = $this->ip2location->firewallFiltersIp2locationStore->deleteBy(['filter_id', '=', (int) $filter['id']]);
         }
 
         if ($defaultStore) {
@@ -543,7 +543,7 @@ class Firewall extends Base
 
         if ($newFilter) {
             $deleteFilter = $this->removeFilter($oldFilterId, true);
-            var_dump($deleteFilter);
+
             if ($deleteFilter) {
                 $this->addResponse('Filter moved to main store. New ID: ' . $newFilter['id']);
 
@@ -556,7 +556,7 @@ class Firewall extends Base
         return false;
     }
 
-    protected function validateIP($address)
+    public function validateIP($address)
     {
         $ipv6 = false;
         if ($this->ip2location->ipTools->isIpv6($address)) {
@@ -606,7 +606,7 @@ class Firewall extends Base
         return true;
     }
 
-    public function checkIp($ip, $removeFromAutoMonitoring = false)
+    public function checkIp($ip, array $overrideIp2locationLookupSequence = null)
     {
         $this->microtime = 0;
         $this->memoryusage = 0;
@@ -701,25 +701,33 @@ class Firewall extends Base
         if (count($ip2locationFilters) > 0) {
             $ip2locationLookupOptions = ['API', 'BIN'];
 
-            if (in_array($this->config['ip2location_primary_lookup_method'], $ip2locationLookupOptions)) {
-                $arrayKey = array_keys($ip2locationLookupOptions, $this->config['ip2location_primary_lookup_method']);
+            if ($overrideIp2locationLookupSequence && count($overrideIp2locationLookupSequence) === 2) {
+                $ip2locationLookupOptions = $overrideIp2locationLookupSequence;
+            }
 
-                $ip2locationLookupOptionsMethod = $ip2locationLookupOptions[$arrayKey[0]];
+            if (in_array($this->config['ip2location_primary_lookup_method'], $ip2locationLookupOptions)) {
+                if (!$overrideIp2locationLookupSequence) {
+                    $arrayKey = array_keys($ip2locationLookupOptions, $this->config['ip2location_primary_lookup_method']);
+
+                    $ip2locationLookupOptionsMethod = strtoupper($ip2locationLookupOptions[$arrayKey[0]]);
+                } else {
+                    $ip2locationLookupOptionsMethod = strtoupper($ip2locationLookupOptions[0]);
+                }
 
                 $lookupMethod = 'getIpDetailsFromIp2location' . $ip2locationLookupOptionsMethod;
 
-                $response = $this->$lookupMethod($ip);
+                $response = $this->ip2location->$lookupMethod($ip);
 
                 if (!$response) {//Not found in primary lookup, we get the secondary from list.
                     unset($ip2locationLookupOptions[$arrayKey[0]]);
 
                     $ip2locationLookupOptions = array_values($ip2locationLookupOptions);
 
-                    $ip2locationLookupOptionsMethod = $ip2locationLookupOptions[0];
+                    $ip2locationLookupOptionsMethod = strtoupper($ip2locationLookupOptions[0]);
 
                     $lookupMethod = 'getIpDetailsFromIp2location' . $ip2locationLookupOptionsMethod;
 
-                    $response = $this->$lookupMethod($ip);
+                    $response = $this->ip2location->$lookupMethod($ip);
                 }
 
                 if ($response) {
@@ -736,9 +744,11 @@ class Firewall extends Base
                     if ($filterRule) {
                         $filter = $this->getFilterById($filterRule);
 
-                        $response['filter_id'] = $filterRule;
+                        if (!isset($response['id'])) {
+                            $response['filter_id'] = $filterRule;
 
-                        $this->firewallFiltersIp2locationStore->insert($response);
+                            $this->ip2location->firewallFiltersIp2locationStore->insert($response);
+                        }
 
                         $ip2locationCheckIpFilter = $this->checkIPFilter($filter, $ip);
 
@@ -781,33 +791,6 @@ class Firewall extends Base
         } else if ($this->config['default_filter'] === 'block') {
             $this->addResponse('Blocked by default firewall filter', 1);
 
-            return false;
-        }
-
-        return true;
-    }
-
-    protected function checkIPIsPublic($ip)
-    {
-        if ($this->validateIP($ip)) {
-            $ipv6 = false;
-
-            if (str_contains($ip, ':')) {
-                $ipv6 = true;
-            }
-
-            $isPublic = filter_var(
-                $ip,
-                FILTER_VALIDATE_IP,
-                ($ipv6 ? FILTER_FLAG_IPV6 : FILTER_FLAG_IPV4) | FILTER_FLAG_NO_PRIV_RANGE |  FILTER_FLAG_NO_RES_RANGE
-            );
-
-            if (!$isPublic) {
-                $this->addResponse('IP Address : ' . $ip . ' is from a private range of IP addresses!', 2);
-
-                return false;
-            }
-        } else {
             return false;
         }
 

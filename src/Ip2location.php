@@ -18,9 +18,9 @@ class Ip2location
 
     public $dataPath;
 
-    protected $firewall;
+    public $firewallFiltersIp2locationStore;
 
-    protected $firewallFiltersIp2locationStore;
+    protected $firewall;
 
     public function __construct(Firewall $firewall)
     {
@@ -51,21 +51,23 @@ class Ip2location
                     $this->dataPath . '/' . $this->firewall->config['ip2location_bin_file_code'] . '.BIN',
                     constant('\IP2Location\Database::' . $this->firewall->config['ip2location_bin_access_mode'])
                 );
-        } catch (\Exception $e) {
+        } catch (\throwable $e) {
             //Log it to logger here.
             return false;
         }
 
-        $recordArr = $ip2locationBin->lookup($ip, \IP2Location\Database::ALL);
+        $ipDetailsArr = $ip2locationBin->lookup($ip, \IP2Location\Database::ALL);
 
-        if ($recordArr) {
-            $record['ip'] = $ip;
-            $record['country_code'] = $recordArr['countryCode'];
-            $record['country_name'] = $recordArr['countryName'];
-            $record['region_name'] = $recordArr['regionName'];
-            $record['city_name'] = $recordArr['cityName'];
+        if ($ipDetailsArr) {
+            $ipDetails['ip'] = $ip;
+            $ipDetails['country_code'] = $ipDetailsArr['countryCode'];
+            $ipDetails['country_name'] = $ipDetailsArr['countryName'];
+            $ipDetails['region_name'] = $ipDetailsArr['regionName'];
+            $ipDetails['city_name'] = $ipDetailsArr['cityName'];
 
-            return $record;
+            $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully using BIN file.', 0, ['ip_details' => $ipDetails]);
+
+            return $ipDetails;
         }
 
         return false;
@@ -103,7 +105,7 @@ class Ip2location
 
                     $ipDetails = $this->firewallFiltersIp2locationStore->insert($ipDetails);
 
-                    $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $ipDetails]);
+                    $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully using API.', 0, ['ip_details' => $ipDetails]);
 
                     return $response;
                 } else {
@@ -113,6 +115,8 @@ class Ip2location
                 //Log to logger here
                 return false;
             }
+        } else {
+            $this->firewall->addResponse('Lookup is using io API and io API keys are not set!', 1);
         }
 
         return false;
@@ -131,7 +135,7 @@ class Ip2location
             return true;
         }
 
-        $this->addResponse('Error downloading file', 1);
+        $this->firewall->addResponse('Error downloading file', 1);
     }
 
     public function processDownloadedBinFile($download, $trackCounter = null)
@@ -141,7 +145,7 @@ class Ip2location
         }
 
         if ($this->trackCounter === 0) {
-            $this->addResponse('Error while downloading file: ' . $download->getBody()->getContents(), 1);
+            $this->firewall->addResponse('Error while downloading file: ' . $download->getBody()->getContents(), 1);
 
             return false;
         }
@@ -157,16 +161,16 @@ class Ip2location
 
         //Rename file to the bin file code name.
         try {
-            $this->setLocalContent(false, $this->dataPath . '/');
+            $this->firewall->setLocalContent(false, $this->dataPath . '/');
 
-            $folderContents = $this->localContent->listContents('');
+            $folderContents = $this->firewall->localContent->listContents('');
 
             $renamedFile = false;
 
             foreach ($folderContents as $key => $content) {
                 if ($content instanceof FileAttributes) {
                     if (str_contains($content->path(), '.BIN')) {
-                        $this->localContent->move($content->path(), $this->config['ip2location_bin_file_code'] . '.BIN');
+                        $this->firewall->localContent->move($content->path(), $this->firewall->config['ip2location_bin_file_code'] . '.BIN');
 
                         $renamedFile = true;
 
@@ -179,14 +183,14 @@ class Ip2location
                 throw new \Exception('ip2locationdata has no files');
             }
 
-            $this->setLocalContent();
+            $this->firewall->setLocalContent();
         } catch (UnableToListContents | \throwable | UnableToMoveFile | FilesystemException $e) {
             throw $e;
         }
 
-        $this->setConfigIp2locationBinDownloadDate();
+        $this->firewall->setConfigIp2locationBinDownloadDate();
 
-        $this->addResponse('Updated ip2location bin file.');
+        $this->firewall->addResponse('Updated ip2location bin file.');
 
         return true;
     }

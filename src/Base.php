@@ -272,7 +272,13 @@ abstract class Base
             $key = null;
         }
 
-        return $this->updateConfig(['ip2location_api_key' => $key]);
+        $arr = ['ip2location_api_key' => $key];
+
+        if (is_null($key)) {
+            $arr = array_merge($arr, ['ip2location_bin_download_date' => null]);
+        }
+
+        return $this->updateConfig($arr);
     }
 
     public function setIp2locationBinFileCode($fileCode)
@@ -322,6 +328,8 @@ abstract class Base
 
     public function setIp2locationPrimaryLookupMethod($lookupMethod)
     {
+        $lookupMethod = strtoupper($lookupMethod);
+
         if ($lookupMethod === '' ||
             ($lookupMethod !== 'API' && $lookupMethod !== 'BIN')
         ) {
