@@ -101,6 +101,8 @@ class Ip2location
                     $ipDetails['region_name'] = $response['region_name'];
                     $ipDetails['city_name'] = $response['city_name'];
 
+                    $ipDetails = $this->firewallFiltersIp2locationStore->insert($ipDetails);
+
                     $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $ipDetails]);
 
                     return $response;
@@ -185,6 +187,33 @@ class Ip2location
         $this->setConfigIp2locationBinDownloadDate();
 
         $this->addResponse('Updated ip2location bin file.');
+
+        return true;
+    }
+
+    protected function checkIPIsPublic($ip)
+    {
+        if ($this->firewall->validateIP($ip)) {
+            $ipv6 = false;
+
+            if (str_contains($ip, ':')) {
+                $ipv6 = true;
+            }
+
+            $isPublic = filter_var(
+                $ip,
+                FILTER_VALIDATE_IP,
+                ($ipv6 ? FILTER_FLAG_IPV6 : FILTER_FLAG_IPV4) | FILTER_FLAG_NO_PRIV_RANGE |  FILTER_FLAG_NO_RES_RANGE
+            );
+
+            if (!$isPublic) {
+                $this->firewall->addResponse('IP Address : ' . $ip . ' is from a private range of IP addresses!', 2);
+
+                return false;
+            }
+        } else {
+            return false;
+        }
 
         return true;
     }
