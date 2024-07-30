@@ -199,10 +199,10 @@ class Indexes
             $ipv4IndexPath = join('/', $ipv4IndexArr);
 
             try {
-                $file = $this->firewall->localContent->fileExists($ipv4IndexPath . $ipv4Index . '.txt');
+                $file = $this->firewall->localContent->fileExists($ipv4IndexPath . '/' . $ipv4Index . '.txt');
 
                 if ($file) {
-                    $this->firewall->localContent->delete($ipv4IndexPath . $ipv4Index . '.txt');
+                    $this->firewall->localContent->delete($ipv4IndexPath . '/' . $ipv4Index . '.txt');
 
                     $this->firewall->setLocalContent();
 
@@ -217,10 +217,10 @@ class Indexes
             $ipv6IndexPath = join('/', $ipv6IndexArr);
 
             try {
-                $file = $this->firewall->localContent->fileExists($ipv6IndexPath . $ipv6Index . '.txt');
+                $file = $this->firewall->localContent->fileExists($ipv6IndexPath . '/' . $ipv6Index . '.txt');
 
                 if ($file) {
-                    $this->firewall->localContent->delete($ipv6IndexPath . $ipv6Index . '.txt');
+                    $this->firewall->localContent->delete($ipv6IndexPath . '/' . $ipv6Index . '.txt');
 
                     $this->firewall->setLocalContent();
 
