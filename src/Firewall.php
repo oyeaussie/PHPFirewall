@@ -647,7 +647,7 @@ class Firewall extends Base
             $filter = $this->getFilterById($indexes[0], false, $indexes[1]);
 
             if ($filter) {
-                $indexesCheckIpFilter = $this->checkIPFilter($filter);
+                $indexesCheckIpFilter = $this->checkIPFilter($filter, false, $indexes[1]);
 
                 $this->setMicroTimer('indexesCheckIpFilter', true);
 
@@ -812,7 +812,7 @@ class Firewall extends Base
         return true;
     }
 
-    protected function checkIPFilter($filter, $ip = false)
+    protected function checkIPFilter($filter, $ip = false, $defaultStore = false)
     {
         if ($ip) {//Check if IP is in default store and remove it
             $inDefaultFilter = $this->getFilterByAddress($ip, false, true);
@@ -843,7 +843,7 @@ class Firewall extends Base
             $parentFilter = $this->getFilterById($filter['parent_id']);
         }
 
-        $this->bumpFilterHitCounter($filter);
+        $this->bumpFilterHitCounter($filter, $defaultStore);
 
         if ($filter['filter_type'] === 'allow' ||
             $filter['filter_type'] === 'monitor'
