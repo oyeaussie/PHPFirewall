@@ -107,6 +107,7 @@ class Indexes
 
         $filters = $this->firewall->getFilterByAddressType('host');
         $this->indexFilters($filters);
+
         $filters = $this->firewall->getFilterByAddressType('host', true);
         $this->indexFilters($filters, true);
 
@@ -137,10 +138,6 @@ class Indexes
 
                     try {
                         $this->firewall->localContent->write($ipv4IndexPath . '/' . $ipv4Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
-
-                        $this->firewall->setLocalContent();
-
-                        return true;
                     } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
                         $this->firewall->addResponse($e->getMessage(), 1);
                     }
@@ -151,15 +148,15 @@ class Indexes
 
                     try {
                         $this->firewall->localContent->write($ipv6IndexPath . '/' . $ipv6Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
-
-                        $this->firewall->setLocalContent();
-
-                        return true;
                     } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
                         $this->firewall->addResponse($e->getMessage(), 1);
                     }
                 }
             }
+
+            $this->firewall->setLocalContent();
+
+            return true;
         }
 
         $this->firewall->setLocalContent();
@@ -204,6 +201,8 @@ class Indexes
                 if ($file) {
                     $this->firewall->localContent->delete($ipv4IndexPath . '/' . $ipv4Index . '.txt');
 
+                    $this->cleanupPath($ipv4IndexArr);
+
                     $this->firewall->setLocalContent();
 
                     return true;
@@ -222,6 +221,8 @@ class Indexes
                 if ($file) {
                     $this->firewall->localContent->delete($ipv6IndexPath . '/' . $ipv6Index . '.txt');
 
+                    $this->cleanupPath($ipv6IndexArr);
+
                     $this->firewall->setLocalContent();
 
                     return true;
@@ -234,6 +235,21 @@ class Indexes
         $this->firewall->setLocalContent();
 
         return false;
+    }
+
+    protected function cleanupPath(array $pathArr)
+    {
+        foreach ($pathArr as $path) {
+            $checkPath = join('/', $pathArr);
+
+            $folders = $this->firewall->localContent->listContents($checkPath)->toArray()   ;
+
+            if (count($folders) === 0) {
+                $this->firewall->localContent->deleteDirectory($checkPath);
+            }
+
+            array_pop($pathArr);
+        }
     }
 
     protected function deleteIndexes()
