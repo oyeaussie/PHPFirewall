@@ -228,7 +228,23 @@ abstract class Base
             return false;
         }
 
-        return $this->updateConfig(['default_filter' => $state]);
+        $defaultFilterState = $this->updateConfig(['default_filter' => $state]);
+
+        if ($defaultFilterState) {
+            $filters = $this->firewallFiltersDefaultStore->findAll();
+
+            if ($filters && count($filters) > 0) {
+                foreach ($filters as $filter) {
+                    $filter['filter_type'] = $state;
+
+                    $this->firewallFiltersDefaultStore->update($filter);
+                }
+            }
+
+            return $defaultFilterState;
+        }
+
+        return false;
     }
 
     public function resetConfigDefaultFilterHitCount()

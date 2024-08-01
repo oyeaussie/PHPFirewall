@@ -444,7 +444,7 @@ class Firewall extends Base
         return $newFilter;
     }
 
-    public function updateFilter(array $data)
+    public function updateFilter(array $data, $defaultStore = false)
     {
         if (!isset($data['id'])) {
             $this->addResponse('Please provide correct filter ID', 1);
@@ -477,6 +477,10 @@ class Firewall extends Base
         }
 
         $filter['filter_type'] = $data['filter_type'];
+
+        if ($defaultStore) {
+            return $this->firewallFiltersDefaultStore->update($filter);
+        }
 
         return $this->firewallFiltersStore->update($filter);
     }
