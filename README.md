@@ -1,6 +1,26 @@
 <h2>Description:</h2>
 PHPFirewall is a tool to allow/block connections to your web resource using IP address. The IP address details are either retrieved from local database or by making a API calls to IP2Location.io
 
+<h2>Quick Start</h2>
+
+```php
+        $firewall = new \PHPFirewall\Firewall;
+
+        try {
+            if (!$firewall->checkIp()) {
+                //Do Something
+                //OR
+                //Send 404
+                http_response_code(404);
+
+                exit;
+            }
+        } catch (\throwable $e) {
+            echo $e->getMessage();
+        }
+    }
+```
+
 <h2>Documentation:</h2>
 
 [Documentation for this repository](https://github.com/oyeaussie/PHPFirewall/wiki/1.-Description)
