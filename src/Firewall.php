@@ -386,6 +386,15 @@ class Firewall extends Base
 
         if (isset($data['address'])) {
             if ($data['address_type'] === 'host' || $data['address_type'] === 'network') {
+
+                if ($data['address_type'] === 'network' &&
+                    !str_contains($data['address'], '/')
+                ) {
+                    $this->addResponse('Please type correct network address. Format is CIDR - network address/network mask', 1);
+
+                    return false;
+                }
+
                 $address = explode('/', $data['address'])[0];
 
                 if (!$this->validateIP($address)) {
