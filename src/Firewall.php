@@ -806,6 +806,8 @@ class Firewall extends Base
 
         if ($filter) {//We find the address in default store and bump its counter
             $this->bumpFilterHitCounter($filter, true);
+
+            $this->indexes->addToIndex($filter, true);//Add to index
         } else {//We add a new entry in default store
             $newFilter['address_type'] = 'host';
             $newFilter['address'] = $ip;
@@ -840,6 +842,8 @@ class Firewall extends Base
             }
 
             if ($filter['address_type'] === 'host') {
+                // $this->indexes->addToIndex($filter, true);//Add to index
+
                 $ip = false;
             }
         }
