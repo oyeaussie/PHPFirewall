@@ -19,6 +19,8 @@ class Firewall extends Base
 
     public $ip2location;
 
+    public $ip;
+
     public function __construct($createRoot = false, $dataPath = null)
     {
         parent::__construct($createRoot, $dataPath);
@@ -644,14 +646,20 @@ class Firewall extends Base
         return true;
     }
 
-    public function checkIp($ip, array $overrideIp2locationLookupSequence = null)
+    public function checkIp($ip = null, array $overrideIp2locationLookupSequence = null)
     {
-        $this->microtime = 0;
-        $this->memoryusage = 0;
+        if (!$ip) {
+            $ip = $this->ip2location->ipTools->getVisitorIp();
+        }
 
         if (!$this->validateIP($ip)) {
             return false;
         }
+
+        $this->ip = $ip;
+
+        $this->microtime = 0;
+        $this->memoryusage = 0;
 
         $this->getConfig();
 
