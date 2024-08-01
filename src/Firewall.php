@@ -846,7 +846,7 @@ class Firewall extends Base
             }
 
             if ($filter['address_type'] === 'host') {
-                // $this->indexes->addToIndex($filter, true);//Add to index
+                $this->indexes->addToIndex($filter, $defaultStore);//Add to index
 
                 $ip = false;
             }
