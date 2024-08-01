@@ -493,6 +493,10 @@ class Firewall extends Base
 
         $filter['filter_type'] = $data['filter_type'];
 
+        if ($filter['address_type'] === 'host') {
+            $this->indexes->removeFromIndex($filter['address']);
+        }
+
         if ($defaultStore) {
             return $this->firewallFiltersDefaultStore->update($filter);
         }
