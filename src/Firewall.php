@@ -426,10 +426,12 @@ class Firewall extends Base
                 }
             }
         } else {
-            $inDefaultFilter = $this->getFilterByAddress($data['address'], false, true);
+            if ($data['address_type'] === 'host') {
+                $inDefaultFilter = $this->getFilterByAddress($data['address'], false, true);
 
-            if ($inDefaultFilter) {
-                $this->removeFilter($inDefaultFilter['id'], true);
+                if ($inDefaultFilter) {
+                    $this->removeFilter($inDefaultFilter['id'], true);
+                }
             }
 
             $newFilter = $this->firewallFiltersStore->insert($data);
@@ -439,6 +441,10 @@ class Firewall extends Base
                     $this->indexes->addToIndex($newFilter);
                 }
             }
+        }
+
+        if ($data['address_type'] !== 'host') {
+            $this->indexes->reindexFilters(true, true);//We have to clear index for new network/ips to be indexed again.
         }
 
         return $newFilter;
