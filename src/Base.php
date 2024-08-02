@@ -583,6 +583,46 @@ abstract class Base
         return false;
     }
 
+    public function getProcessedMicroTimers()
+    {
+        $microtimers = $this->getMicroTimer();
+        var_dump($microtimers);
+        if ($microtimers && count($microtimers) > 0) {
+            foreach ($microtimers as $time) {
+                $totalTime = $time['difference'];
+
+                if (str_contains(strtolower($time['memoryusage']), 'nan')) {
+                    $time['memoryusage'] = str_replace('NAN', '0', $time['memoryusage']);
+                }
+
+                $totalMemoryUsage = $time['memoryusage'];
+
+                $method = str_replace('CheckIpFilter', '', $time['reference']);
+            }
+        }
+
+        if (isset($totalTime) && isset($totalMemoryUsage) && isset($method)) {
+            if (strtolower($method) === 'default') {
+                $totalTime = $this->getTotalMicrotimer();
+            }
+
+            if ($method !== 'indexes') {
+                $method = $method . ' database';
+            }
+
+            return $this->ip . ' address found in ' . $method . '. It took ' . $totalTime . '(s) and ' . $totalMemoryUsage . ' of memory.';
+        }
+
+        return '';
+    }
+
+    protected function resetMicroTimers()
+    {
+        $this->microtime = 0;
+        $this->memoryusage = 0;
+        $this->microTimers = [];
+    }
+
     protected function checkFirewallPath()
     {
         if (str_contains(__DIR__, '/vendor/')) {
@@ -606,8 +646,12 @@ abstract class Base
         return true;
     }
 
-    protected function setMicroTimer($reference, $calculateMemoryUsage = false)
+    protected function setMicroTimer($reference, $calculateMemoryUsage = false, $resetMicroTimers = false)
     {
+        if ($resetMicroTimers) {
+            $this->resetMicroTimers();
+        }
+
         if (isset($this->microTimers[$reference])) {
             $microtime = $this->microTimers[$reference];
         } else {

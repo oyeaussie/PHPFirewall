@@ -428,6 +428,10 @@ class Firewall extends Base
             $data['parent_id'] = null;
         }
 
+        if (!isset($data['hit_count'])) {
+            $data['hit_count'] = 0;
+        }
+
         if ($defaultStore) {
             $newFilter = $this->firewallFiltersDefaultStore->insert($data);
 
@@ -658,9 +662,6 @@ class Firewall extends Base
 
         $this->ip = $ip;
 
-        $this->microtime = 0;
-        $this->memoryusage = 0;
-
         $this->getConfig();
 
         if ($this->config['status'] === 'disable') {
@@ -670,7 +671,7 @@ class Firewall extends Base
         }
 
         //Zero Check - We check Ip in Index
-        $this->setMicroTimer('indexesCheckIpFilter', true);
+        $this->setMicroTimer('indexesCheckIpFilter', true, true);
 
         $indexes = $this->indexes->searchIndexes($ip);
 
@@ -687,7 +688,7 @@ class Firewall extends Base
         }
 
         //First Check - We check HOST entries
-        $this->setMicroTimer('hostCheckIpFilter', true);
+        $this->setMicroTimer('hostCheckIpFilter', true, true);
 
         $filter = $this->getFilterByAddressAndType($ip, 'host');
 
@@ -700,10 +701,7 @@ class Firewall extends Base
         }
 
         //Second Check - We check NETWORK entries
-        $this->microtime = 0;
-        $this->memoryusage = 0;
-
-        $this->setMicroTimer('networkCheckIpFilter', true);
+        $this->setMicroTimer('networkCheckIpFilter', true, true);
 
         $filters = $this->getFilterByType('network');
 
@@ -720,10 +718,7 @@ class Firewall extends Base
         }
 
         //Third Check - We check ip2location as per the primary set first and then secondary if we did not find the entry
-        $this->microtime = 0;
-        $this->memoryusage = 0;
-
-        $this->setMicroTimer('ip2locationCheckIpFilter', true);
+        $this->setMicroTimer('ip2locationCheckIpFilter', true, true);
 
         $ip2locationFilters = [];
 
@@ -807,7 +802,7 @@ class Firewall extends Base
         }
 
         //Forth - We check DEFAULT entries
-        $this->setMicroTimer('defaultCheckIpFilter', true);
+        $this->setMicroTimer('defaultCheckIpFilter', true, true);
 
         $this->config['default_filter_hit_count'] = (int) $this->config['default_filter_hit_count'] + 1;
 
