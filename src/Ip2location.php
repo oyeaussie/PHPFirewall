@@ -125,8 +125,8 @@ class Ip2location
     public function downloadBinFile()
     {
         $download = $this->downloadData(
-                'https://www.ip2location.com/download/?token=' . $this->config['ip2location_api_key'] . '&file=' . $this->config['ip2location_bin_file_code'],
-                $this->dataPath . '/' . $this->config['ip2location_bin_file_code'] . '.ZIP'
+                'https://www.ip2location.com/download/?token=' . $this->firewall->config['ip2location_api_key'] . '&file=' . $this->firewall->config['ip2location_bin_file_code'],
+                $this->dataPath . '/' . $this->firewall->config['ip2location_bin_file_code'] . '.ZIP'
             );
 
         if ($download) {
@@ -138,7 +138,23 @@ class Ip2location
         $this->firewall->addResponse('Error downloading file', 1);
     }
 
-    public function processDownloadedBinFile($download, $trackCounter = null)
+    public function downloadProxyBinFile()
+    {
+        $download = $this->downloadData(
+                'https://www.ip2location.com/download/?token=' . $this->firewall->config['ip2location_api_key'] . '&file=' . $this->firewall->config['ip2location_proxy_bin_file_code'],
+                $this->dataPath . '/' . $this->firewall->config['ip2location_proxy_bin_file_code'] . '.ZIP'
+            );
+
+        if ($download) {
+            $this->processDownloadedBinFile($download, null, true);
+
+            return true;
+        }
+
+        $this->firewall->addResponse('Error downloading file', 1);
+    }
+
+    public function processDownloadedBinFile($download, $trackCounter = null, $proxy = false)
     {
         if (!is_null($trackCounter)) {
             $this->trackCounter = $trackCounter;
@@ -153,7 +169,13 @@ class Ip2location
         //Extract here.
         $zip = new \ZipArchive;
 
-        if ($zip->open($this->dataPath . '/DB3LITEBINIPV6.ZIP') === true) {
+        if ($proxy) {
+            $file = $this->dataPath . '/' . $this->firewall->config['ip2location_proxy_bin_file_code'] . '.ZIP';
+        } else {
+            $file = $this->dataPath . '/' . $this->firewall->config['ip2location_bin_file_code'] . '.ZIP';
+        }
+
+        if ($zip->open($file) === true) {
             $zip->extractTo($this->dataPath . '/');
 
             $zip->close();
@@ -170,7 +192,13 @@ class Ip2location
             foreach ($folderContents as $key => $content) {
                 if ($content instanceof FileAttributes) {
                     if (str_contains($content->path(), '.BIN')) {
-                        $this->firewall->localContent->move($content->path(), $this->firewall->config['ip2location_bin_file_code'] . '.BIN');
+                        if ($proxy) {
+                            $file = $this->firewall->config['ip2location_proxy_bin_file_code'] . '.BIN';
+                        } else {
+                            $file = $this->firewall->config['ip2location_bin_file_code'] . '.BIN';
+                        }
+
+                        $this->firewall->localContent->move($content->path(), $file);
 
                         $renamedFile = true;
 
@@ -188,9 +216,39 @@ class Ip2location
             throw $e;
         }
 
-        $this->firewall->setConfigIp2locationBinDownloadDate();
+        if ($proxy) {
+            $this->firewall->setConfigIp2locationProxyBinDownloadDate();
 
-        $this->firewall->addResponse('Updated ip2location bin file.');
+            try {
+                $ip2locationProxyBin =
+                    new \IP2Location\Database(
+                        $this->dataPath . '/' . $this->firewall->config['ip2location_proxy_bin_file_code'] . '.BIN',
+                        constant('\IP2Location\Database::' . $this->firewall->config['ip2location_proxy_bin_access_mode'])
+                    );
+
+                $this->firewall->setConfigIp2locationProxyBinVersion($ip2locationProxyBin->getDatabaseVersion());
+            } catch (\throwable $e) {
+                throw $e;
+            }
+
+            $this->firewall->addResponse('Updated ip2location bin file.');
+        } else {
+            $this->firewall->setConfigIp2locationBinDownloadDate();
+
+            try {
+                $ip2locationBin =
+                    new \IP2Location\Database(
+                        $this->dataPath . '/' . $this->firewall->config['ip2location_bin_file_code'] . '.BIN',
+                        constant('\IP2Location\Database::' . $this->firewall->config['ip2location_bin_access_mode'])
+                    );
+
+                $this->firewall->setConfigIp2locationBinVersion($ip2locationBin->getDatabaseVersion());
+            } catch (\throwable $e) {
+                throw $e;
+            }
+
+            $this->firewall->addResponse('Updated ip2location bin file.');
+        }
 
         return true;
     }

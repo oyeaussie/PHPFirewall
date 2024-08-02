@@ -100,23 +100,28 @@ abstract class Base
         if (!$this->config) {
             $this->config = $this->firewallConfigStore->updateOrInsert(
                 [
-                    'id'                                => 1,
-                    'status'                            => 'enable',//Enable/disable/monitor
-                    'filter_ipv4'                       => true,
-                    'filter_ipv6'                       => true,
-                    'allow_private_range'               => true,
-                    'allow_reserved_range'              => true,
-                    'default_filter'                    => 'allow',
-                    'default_filter_hit_count'          => 0,
-                    'auto_unblock_ip_minutes'           => false,
-                    'auto_indexing'                     => true,//Index host addresses in main and default filters
-                    'ip2location_api_key'               => null,
-                    'ip2location_bin_file_code'         => 'DB3LITEBINIPV6',//IP-COUNTRY-REGION-CITY
-                    'ip2location_bin_access_mode'       => 'FILE_IO',//SHARED_MEMORY, MEMORY_CACHE, FILE_IO
-                    'ip2location_bin_download_date'     => null,
-                    'ip2location_io_api_key'            => null,
-                    'ip2location_primary_lookup_method' => 'API',//API/BIN
-                    'geodata_download_date'             => null
+                    'id'                                    => 1,
+                    'status'                                => 'enable',//Enable/disable/monitor
+                    'filter_ipv4'                           => true,
+                    'filter_ipv6'                           => true,
+                    'allow_private_range'                   => true,
+                    'allow_reserved_range'                  => true,
+                    'default_filter'                        => 'allow',
+                    'default_filter_hit_count'              => 0,
+                    'auto_unblock_ip_minutes'               => false,
+                    'auto_indexing'                         => true,//Index host addresses in main and default filters
+                    'ip2location_api_key'                   => null,
+                    'ip2location_bin_file_code'             => 'DB3LITEBINIPV6',//IP-COUNTRY-REGION-CITY
+                    'ip2location_bin_access_mode'           => 'FILE_IO',//SHARED_MEMORY, MEMORY_CACHE, FILE_IO
+                    'ip2location_bin_version'               => null,
+                    'ip2location_bin_download_date'         => null,
+                    'ip2location_proxy_bin_file_code'       => 'PX3LITEBIN',//IP-COUNTRY-REGION-CITY
+                    'ip2location_proxy_bin_access_mode'     => 'FILE_IO',//SHARED_MEMORY, MEMORY_CACHE, FILE_IO
+                    'ip2location_proxy_bin_version'         => null,
+                    'ip2location_proxy_bin_download_date'   => null,
+                    'ip2location_io_api_key'                => null,
+                    'ip2location_primary_lookup_method'     => 'API',//API/BIN
+                    'geodata_download_date'                 => null
                 ]
             );
         }
@@ -327,6 +332,36 @@ abstract class Base
         return $this->updateConfig(['ip2location_bin_access_mode' => strtoupper($accessMode)]);
     }
 
+    public function setIp2locationProxyBinFileCode($fileCode)
+    {
+        if ($fileCode === '') {
+            $this->addResponse('Please provide correct proxy file code.', 1);
+
+            return false;
+        }
+
+        if ($fileCode === 'null') {
+            $fileCode = null;
+        }
+
+        return $this->updateConfig(['ip2location_proxy_bin_file_code' => strtoupper($fileCode)]);
+    }
+
+    public function setIp2locationProxyBinAccessMode($accessMode)
+    {
+        if ($accessMode === '') {
+            $this->addResponse('Please provide correct proxy file mode.', 1);
+
+            return false;
+        }
+
+        if ($accessMode === 'null') {
+            $accessMode = null;
+        }
+
+        return $this->updateConfig(['ip2location_proxy_bin_access_mode' => strtoupper($accessMode)]);
+    }
+
     public function setConfigIp2locationIoKey($key)
     {
         if ($key === '') {
@@ -359,7 +394,22 @@ abstract class Base
 
     public function setConfigIp2locationBinDownloadDate()
     {
-        return $this->updateConfig(['ip2location_bin_download_date' => time()]);
+        return $this->updateConfig(['ip2location_bin_download_date' => Carbon::now()->toDateTimeString()]);
+    }
+
+    public function setConfigIp2locationProxyBinDownloadDate()
+    {
+        return $this->updateConfig(['ip2location_proxy_bin_download_date' => Carbon::now()->toDateTimeString()]);
+    }
+
+    public function setConfigIp2locationBinVersion($version)
+    {
+        return $this->updateConfig(['ip2location_bin_version' => $version]);
+    }
+
+    public function setConfigIp2locationProxyBinVersion($version)
+    {
+        return $this->updateConfig(['ip2location_proxy_bin_version' => $version]);
     }
 
     public function setConfigGeodataDownloadDate()
