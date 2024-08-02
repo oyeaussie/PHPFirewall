@@ -586,7 +586,7 @@ abstract class Base
     public function getProcessedMicroTimers()
     {
         $microtimers = $this->getMicroTimer();
-        var_dump($microtimers);
+
         if ($microtimers && count($microtimers) > 0) {
             foreach ($microtimers as $time) {
                 $totalTime = $time['difference'];
