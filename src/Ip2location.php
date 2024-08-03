@@ -64,13 +64,20 @@ class Ip2location
                     constant('\IP2Location\Database::' . $this->firewall->config['ip2location_bin_access_mode'])
                 );
         } catch (\throwable $e) {
-            throw $e;
+            //Log here
+            if (str_contains($e->getMessage(), 'exist')) {
+                $this->firewall->addResponse('Bin file does not exist, please download bin file first to check in bin file.', 1);
+            } else {
+                $this->firewall->addResponse($e->getMessage(), 1);
+            }
+
+            return false;
         }
 
         $ipDetailsArr = $ip2locationBin->lookup($ip, \IP2Location\Database::ALL);
 
         if ($ipDetailsArr) {
-            $ipDetails['ip'] = $ip;
+            $ipDetails['address'] = $ip;
             $ipDetails['country_code'] = $ipDetailsArr['countryCode'];
             $ipDetails['country_name'] = $ipDetailsArr['countryName'];
             $ipDetails['region_name'] = $ipDetailsArr['regionName'];
@@ -100,13 +107,19 @@ class Ip2location
                 );
 
             $ipDetailsArr = $ip2locationProxyBin->lookup($ip, \IP2Proxy\Database::ALL);
-
         } catch (\throwable $e) {
-            throw $e;
+            //Log here
+            if (str_contains($e->getMessage(), 'exist')) {
+                $this->firewall->addResponse('Bin file does not exist, please download bin file first to check in bin file.', 1);
+            } else {
+                $this->firewall->addResponse($e->getMessage(), 1);
+            }
+
+            return false;
         }
 
         if ($ipDetailsArr && isset($ipDetailsArr['countryCode']) && $ipDetailsArr['countryCode'] !== '-') {
-            $ipDetails['ip'] = $ip;
+            $ipDetails['address'] = $ip;
             $ipDetails['is_proxy'] = $ipDetailsArr['isProxy'];
             $ipDetails['proxy_type'] = $ipDetailsArr['proxyType'];
 
@@ -126,10 +139,24 @@ class Ip2location
             return false;
         }
 
-        $firewallFiltersIp2locationStoreEntry = $this->firewallFiltersIp2locationStore->findBy(['ip', '=', $ip]);
+        $index = $this->firewall->indexes->searchIndexes($ip, true);
+
+        if ($index) {
+            $firewallFiltersIp2locationStoreEntry = $this->firewallFiltersIp2locationStore->findById((int) $index);
+
+            if ($firewallFiltersIp2locationStoreEntry) {
+                $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully using indexes.', 0, ['ip_details' => $firewallFiltersIp2locationStoreEntry]);
+
+                return $firewallFiltersIp2locationStoreEntry;
+            }
+        }
+
+        $firewallFiltersIp2locationStoreEntry = $this->firewallFiltersIp2locationStore->findBy(['address', '=', $ip]);
 
         if ($firewallFiltersIp2locationStoreEntry && isset($firewallFiltersIp2locationStoreEntry[0])) {
-            $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully', 0, ['ip_details' => $firewallFiltersIp2locationStoreEntry[0]]);
+            $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully using ip2location local database.', 0, ['ip_details' => $firewallFiltersIp2locationStoreEntry[0]]);
+
+            $this->firewall->indexes->addToIndex($firewallFiltersIp2locationStoreEntry[0], false, true);//Add to index
 
             return $firewallFiltersIp2locationStoreEntry[0];
         }
@@ -141,7 +168,7 @@ class Ip2location
                 if ($apiCallResponse) {
                     $apiCallResponse = (array) $apiCallResponse;
 
-                    $ipDetails['ip'] = $apiCallResponse['ip'];
+                    $ipDetails['address'] = $apiCallResponse['ip'];
                     $ipDetails['country_code'] = $apiCallResponse['country_code'];
                     $ipDetails['region_name'] = $apiCallResponse['region_name'];
                     $ipDetails['city_name'] = $apiCallResponse['city_name'];
@@ -153,12 +180,15 @@ class Ip2location
 
                     $ipDetails = $this->firewallFiltersIp2locationStore->insert($ipDetails);
 
+                    $this->firewall->indexes->addToIndex($ipDetails, false, true);//Add to index
+
                     $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully using API.', 0, ['ip_details' => $ipDetails]);
 
                     return $apiCallResponse;
                 }
             } catch (\throwable $e) {
-                throw $e;
+                //Log here
+                $this->firewall->addResponse($e->getMessage(), 1);
             }
         } else {
             $this->firewall->addResponse('Lookup is using io API and io API keys are not set!', 1);

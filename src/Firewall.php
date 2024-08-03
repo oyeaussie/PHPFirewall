@@ -543,9 +543,6 @@ class Firewall extends Base
 
                 $this->firewallFiltersStore->deleteBy(['parent_id', '=', (int) $filter['id']]);
             }
-
-            //Remove all ip2location database for the filter
-            $ip2locationEntries = $this->ip2location->firewallFiltersIp2locationStore->deleteBy(['filter_id', '=', (int) $filter['id']]);
         }
 
         if ($defaultStore) {
@@ -797,12 +794,6 @@ class Firewall extends Base
 
                     if ($filterRule) {
                         $filter = $this->getFilterById($filterRule);
-
-                        if (!isset($response['id'])) {
-                            $response['filter_id'] = $filterRule;
-
-                            $this->ip2location->firewallFiltersIp2locationStore->insert($response);
-                        }
 
                         $ip2locationCheckIpFilter = $this->checkIPFilter($filter, $ip);
 

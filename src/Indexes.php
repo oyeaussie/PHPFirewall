@@ -25,7 +25,7 @@ class Indexes
         $this->checkIndexesPath();
     }
 
-    public function searchIndexes($ip)
+    public function searchIndexes($ip, $ip2locationIndex = false)
     {
         $this->firewall->setLocalContent(false, $this->dataPath);
 
@@ -44,9 +44,17 @@ class Indexes
             $ipv4IndexPath = join('/', $ipv4IndexArr);
 
             try {
-                $file = $this->firewall->localContent->read($ipv4IndexPath . '/' . $ipv4Index . '.txt');
+                if ($ip2locationIndex) {
+                    $file = $this->firewall->localContent->read($ipv4IndexPath . '/' . $ipv4Index . '-ip2l.txt');
+                } else {
+                    $file = $this->firewall->localContent->read($ipv4IndexPath . '/' . $ipv4Index . '.txt');
+                }
 
                 if ($file) {
+                    if ($ip2locationIndex) {
+                        return $file;
+                    }
+
                     $file = explode(':', $file);
 
                     if (isset($file[0]) && (int) $file[0] > 0) {
@@ -68,9 +76,17 @@ class Indexes
             $ipv6IndexPath = join('/', $ipv6IndexArr);
 
             try {
-                $file = $this->firewall->localContent->write($ipv6IndexPath . '/' . $ipv6Index . '.txt');
+                if ($ip2locationIndex) {
+                    $file = $this->firewall->localContent->read($ipv6IndexPath . '/' . $ipv6Index . '-ip2l.txt');
+                } else {
+                    $file = $this->firewall->localContent->read($ipv6IndexPath . '/' . $ipv6Index . '.txt');
+                }
 
                 if ($file) {
+                    if ($ip2locationIndex) {
+                        return $file;
+                    }
+
                     $file = explode(':', $file);
 
                     if (isset($file[0]) && (int) $file[0] > 0) {
@@ -116,7 +132,7 @@ class Indexes
         return true;
     }
 
-    protected function indexFilters($filters, $defaultStore = false)
+    protected function indexFilters($filters, $defaultStore = false, $ip2locationIndex = false)
     {
         $this->firewall->setLocalContent(false, $this->dataPath);
 
@@ -137,7 +153,11 @@ class Indexes
                     $ipv4IndexPath = join('/', $ipv4IndexArr);
 
                     try {
-                        $this->firewall->localContent->write($ipv4IndexPath . '/' . $ipv4Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
+                        if ($ip2locationIndex) {
+                            $this->firewall->localContent->write($ipv4IndexPath . '/' . $ipv4Index . '-ip2l.txt', $filter['id']);
+                        } else {
+                            $this->firewall->localContent->write($ipv4IndexPath . '/' . $ipv4Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
+                        }
                     } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
                         $this->firewall->addResponse($e->getMessage(), 1);
                     }
@@ -147,7 +167,11 @@ class Indexes
                     $ipv6IndexPath = join('/', $ipv6IndexArr);
 
                     try {
-                        $this->firewall->localContent->write($ipv6IndexPath . '/' . $ipv6Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
+                        if ($ip2locationIndex) {
+                            $this->firewall->localContent->write($ipv4IndexPath . '/' . $ipv6Index . '-ip2l.txt', $filter['id']);
+                        } else {
+                            $this->firewall->localContent->write($ipv6IndexPath . '/' . $ipv6Index . '.txt', ($defaultStore === true ? $filter['id'] . ':d' : $filter['id']));
+                        }
                     } catch (\throwable | UnableToWriteFile | FilesystemException $e) {
                         $this->firewall->addResponse($e->getMessage(), 1);
                     }
@@ -164,13 +188,13 @@ class Indexes
         return false;
     }
 
-    public function addToIndex($filter, $defaultStore = false)
+    public function addToIndex($filter, $defaultStore = false, $ip2locationIndex = false)
     {
         if (!$this->firewall->config['auto_indexing']) {
             return true;
         }
 
-        return $this->indexFilters([$filter], $defaultStore);
+        return $this->indexFilters([$filter], $defaultStore, $ip2locationIndex);
     }
 
     public function removeFromIndex($ip)
