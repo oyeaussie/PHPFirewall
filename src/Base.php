@@ -247,6 +247,8 @@ abstract class Base
                 }
             }
 
+            $this->indexes->reindexFilters(true, true);//We have to clear index for new network/ips to be indexed again.
+
             return $defaultFilterState;
         }
 
@@ -279,6 +281,10 @@ abstract class Base
             return false;
         }
 
+        if ($status === 'disable') {
+            $this->indexes->reindexFilters(true, true);//We have to clear index for new network/ips to be indexed again.
+        }
+
         return $this->updateConfig(['auto_indexing' => ($status === 'enable' ? true : false)]);
     }
 
@@ -299,6 +305,8 @@ abstract class Base
         if (is_null($key)) {
             $arr = array_merge($arr, ['ip2location_bin_download_date' => null]);
         }
+
+        $this->indexes->reindexFilters(true, true);//We have to clear index for new network/ips to be indexed again.
 
         return $this->updateConfig($arr);
     }
@@ -374,6 +382,8 @@ abstract class Base
         if ($key === 'null') {
             $key = null;
         }
+
+        $this->indexes->reindexFilters(true, true);//We have to clear index for new network/ips to be indexed again.
 
         return $this->updateConfig(['ip2location_io_api_key' => $key]);
     }
