@@ -423,7 +423,11 @@ class Firewall extends Base
               $data['ip2location_proxy'] !== 'block')
             )
         ) {
-            $data['ip2location_proxy'] = 'allow';//Default is to allow proxy connections
+            if ($data['address_type'] === 'ip2location') {
+                $data['ip2location_proxy'] = 'allow';//Default is to allow proxy connections
+            } else {
+                $data['ip2location_proxy'] = '-';//Default is to allow proxy connections
+            }
         }
 
         if (!isset($data['updated_by'])) {
