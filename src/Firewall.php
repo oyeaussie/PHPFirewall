@@ -417,6 +417,15 @@ class Firewall extends Base
             }
         }
 
+        if (!isset($data['ip2location_proxy']) ||
+            (isset($data['ip2location_proxy']) &&
+             ($data['ip2location_proxy'] !== 'allow' &&
+              $data['ip2location_proxy'] !== 'block')
+            )
+        ) {
+            $data['ip2location_proxy'] = 'allow';//Default is to allow proxy connections
+        }
+
         if (!isset($data['updated_by'])) {
             $data['updated_by'] = 0;
         }
