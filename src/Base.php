@@ -120,6 +120,7 @@ abstract class Base
                     'ip2location_proxy_bin_version'         => null,
                     'ip2location_proxy_bin_download_date'   => null,
                     'ip2location_io_api_key'                => null,
+                    'ip2location_io_api_language'           => null,
                     'ip2location_primary_lookup_method'     => 'API',//API/BIN
                     'geodata_download_date'                 => null
                 ]
@@ -375,6 +376,21 @@ abstract class Base
         }
 
         return $this->updateConfig(['ip2location_io_api_key' => $key]);
+    }
+
+    public function setConfigIp2locationIoLanguage($language)
+    {
+        if ($language === '') {
+            $this->addResponse('Please provide correct language.', 1);
+
+            return false;
+        }
+
+        if ($language === 'null') {
+            $language = null;
+        }
+
+        return $this->updateConfig(['ip2location_io_api_language' => $language]);
     }
 
     public function setIp2locationPrimaryLookupMethod($lookupMethod)
