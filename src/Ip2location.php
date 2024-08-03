@@ -2,6 +2,8 @@
 
 namespace PHPFirewall;
 
+use IP2LocationIO\Configuration;
+use IP2LocationIO\IPGeolocation;
 use IP2Location\Database;
 use IP2Location\IpTools;
 use League\Flysystem\FileAttributes;
@@ -16,6 +18,8 @@ class Ip2location
 {
     public $ipTools;
 
+    public $ipGeoLocation;
+
     public $dataPath;
 
     public $firewallFiltersIp2locationStore;
@@ -24,9 +28,17 @@ class Ip2location
 
     public function __construct(Firewall $firewall)
     {
+        $this->firewall = $firewall;
+
         $this->ipTools = new IpTools;
 
-        $this->firewall = $firewall;
+        if (isset($this->firewall->config['ip2location_io_api_key']) &&
+            $this->firewall->config['ip2location_io_api_key'] !== ''
+        ) {
+            $ip2locationIoConfiguration = new Configuration($this->firewall->config['ip2location_io_api_key']);
+
+            $this->ipGeoLocation = new IPGeolocation($ip2locationIoConfiguration);
+        }
 
         if (str_contains(__DIR__, '/vendor/')) {
             $this->dataPath = $this->firewall->dataPath . 'ip2locationdata';
@@ -52,8 +64,7 @@ class Ip2location
                     constant('\IP2Location\Database::' . $this->firewall->config['ip2location_bin_access_mode'])
                 );
         } catch (\throwable $e) {
-            //Log it to logger here.
-            return false;
+            throw $e;
         }
 
         $ipDetailsArr = $ip2locationBin->lookup($ip, \IP2Location\Database::ALL);
@@ -69,6 +80,42 @@ class Ip2location
 
             return $ipDetails;
         }
+
+        $this->firewall->addResponse('Details for IP: ' . $ip . ' not available in the BIN file. Please search API.', 2);
+
+        return false;
+    }
+
+    public function getIpDetailsFromIp2locationProxyBIN($ip)
+    {
+        if (!$this->checkIPIsPublic($ip)) {
+            return false;
+        }
+
+        try {
+            $ip2locationProxyBin =
+                new \IP2Proxy\Database(
+                    $this->dataPath . '/' . $this->firewall->config['ip2location_proxy_bin_file_code'] . '.BIN',
+                    constant('\IP2Proxy\Database::' . $this->firewall->config['ip2location_proxy_bin_access_mode'])
+                );
+
+            $ipDetailsArr = $ip2locationProxyBin->lookup($ip, \IP2Proxy\Database::ALL);
+
+        } catch (\throwable $e) {
+            throw $e;
+        }
+
+        if ($ipDetailsArr && isset($ipDetailsArr['countryCode']) && $ipDetailsArr['countryCode'] !== '-') {
+            $ipDetails['ip'] = $ip;
+            $ipDetails['is_proxy'] = $ipDetailsArr['isProxy'];
+            $ipDetails['proxy_type'] = $ipDetailsArr['proxyType'];
+
+            $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully using Proxy BIN file.', 0, ['ip_details' => $ipDetails]);
+
+            return $ipDetails;
+        }
+
+        $this->firewall->addResponse('Details for IP: ' . $ip . ' not available in the Proxy BIN file. Please search API.', 2);
 
         return false;
     }
@@ -87,33 +134,31 @@ class Ip2location
             return $firewallFiltersIp2locationStoreEntry[0];
         }
 
-        if (isset($this->firewall->config['ip2location_io_api_key']) &&
-            $this->firewall->config['ip2location_io_api_key'] !== ''
-        ) {
+        if ($this->ipGeoLocation) {
             try {
-                $apiCallResponse = $this->firewall->remoteWebContent->get('https://api.ip2location.io/?key=' . $this->firewall->config['ip2location_io_api_key'] . '&ip=' . $ip);
+                $apiCallResponse = $this->ipGeoLocation->lookup($ip, $this->firewall->config['ip2location_io_api_language']);
 
-                if ($apiCallResponse && $apiCallResponse->getStatusCode() === 200) {
-                    $response = $apiCallResponse->getBody()->getContents();
+                if ($apiCallResponse) {
+                    $apiCallResponse = (array) $apiCallResponse;
 
-                    $response = json_decode($response, true);
-
-                    $ipDetails['ip'] = $response['ip'];
-                    $ipDetails['country_code'] = $response['country_code'];
-                    $ipDetails['region_name'] = $response['region_name'];
-                    $ipDetails['city_name'] = $response['city_name'];
+                    $ipDetails['ip'] = $apiCallResponse['ip'];
+                    $ipDetails['country_code'] = $apiCallResponse['country_code'];
+                    $ipDetails['region_name'] = $apiCallResponse['region_name'];
+                    $ipDetails['city_name'] = $apiCallResponse['city_name'];
+                    $ipDetails['is_proxy'] = $apiCallResponse['is_proxy'];
+                    $ipDetails['proxy_type'] = '-';
+                    if (isset($apiCallResponse['proxy']) && isset($apiCallResponse['proxy']['proxy_type'])) {
+                        $ipDetails['proxy_type'] = $apiCallResponse['proxy']['proxy_type'];
+                    }
 
                     $ipDetails = $this->firewallFiltersIp2locationStore->insert($ipDetails);
 
                     $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully using API.', 0, ['ip_details' => $ipDetails]);
 
-                    return $response;
-                } else {
-                    throw new \Exception('Lookup failed because of code : ' . $apiCallResponse->getStatusCode());
+                    return $apiCallResponse;
                 }
             } catch (\throwable $e) {
-                //Log to logger here
-                return false;
+                throw $e;
             }
         } else {
             $this->firewall->addResponse('Lookup is using io API and io API keys are not set!', 1);
@@ -191,19 +236,25 @@ class Ip2location
 
             foreach ($folderContents as $key => $content) {
                 if ($content instanceof FileAttributes) {
-                    if (str_contains($content->path(), '.BIN')) {
-                        if ($proxy) {
-                            $file = $this->firewall->config['ip2location_proxy_bin_file_code'] . '.BIN';
-                        } else {
-                            $file = $this->firewall->config['ip2location_bin_file_code'] . '.BIN';
-                        }
-
-                        $this->firewall->localContent->move($content->path(), $file);
-
-                        $renamedFile = true;
-
-                        break;
+                    if ($proxy &&
+                        str_contains($content->path(), '.BIN') &&
+                        str_contains($content->path(), 'PX3')
+                    ) {
+                        $binFile = $this->firewall->config['ip2location_proxy_bin_file_code'] . '.BIN';
+                    } else if (!$proxy &&
+                               str_contains($content->path(), '.BIN') &&
+                               str_contains($content->path(), 'DB3')
+                    ) {
+                        $binFile = $this->firewall->config['ip2location_bin_file_code'] . '.BIN';
+                    } else {
+                        continue;
                     }
+
+                    $this->firewall->localContent->move($content->path(), $binFile);
+
+                    $renamedFile = true;
+
+                    break;
                 }
             }
 
