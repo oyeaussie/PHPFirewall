@@ -1,6 +1,6 @@
 {
     "name": "oyeaussie/phpfirewall",
-    "description": "PHPFirewall is a tool to allow/block connections to your web resource using IP address. The IP address details are either retrieved from local database or by making a API calls to IP2Location.io",
+    "description": "PHPFirewall is a tool to allow/block connections to your web resource using IP address. The IP address details are either retrieved from local database or by making API calls to IP2Location.io",
     "keywords":
     [
         "php",
@@ -12,6 +12,7 @@
         "ip2location",
         "ip2location.io",
         "ip2location api",
+        "ip2location proxy filter",
         "ip address filtering"
     ],
     "authors":

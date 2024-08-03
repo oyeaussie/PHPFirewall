@@ -1,24 +1,22 @@
 <h2>Description:</h2>
-PHPFirewall is a tool to allow/block connections to your web resource using IP address. The IP address details are either retrieved from local database or by making a API calls to IP2Location.io
+PHPFirewall is a tool to allow/block connections to your web resource using IP address. The IP address details are either retrieved from local database or by making API calls to IP2Location.io
 
-<h2>Quick Start</h2>
+<h2>Code Example:</h2>
 
 ```php
-        $firewall = new \PHPFirewall\Firewall;
+//In index.php
+<?php
 
-        try {
-            if (!$firewall->checkIp()) {
-                //Do Something
-                //OR
-                //Send 404
-                http_response_code(404);
+include 'vendor/autoload.php';
 
-                exit;
-            }
-        } catch (\throwable $e) {
-            echo $e->getMessage();
-        }
-    }
+//At this point, we assume that firewall configuration and/or IP2location API keys are set!
+if (!(new \PHPFirewall\Firewall)->checkIp()) {
+    //Send 404
+    http_response_code(404);
+    exit;
+}
+
+// Rest of your code
 ```
 
 <h2>Documentation:</h2>
@@ -30,13 +28,14 @@ Thanks to the following projects for their great work. Without them, this projec
 
 Composer<br>
 Symphony Http Foundation<br>
-Ip2location.io - https://www.ip2location.io/
-Ip2location PHP Module - https://github.com/chrislim2888/IP2Location-PHP-Module
+Ip2location.io - https://www.ip2location.io/<br>
+Ip2location PHP Module - https://github.com/chrislim2888/IP2Location-PHP-Module<br>
+Ip2location Proxy PHP Module - https://github.com/ip2location/ip2proxy-php<br>
 Guzzle - https://github.com/guzzle/guzzle<br>
 Flysystem - https://github.com/thephpleague/flysystem<br>
 SleekDB - https://github.com/SleekDB/SleekDB<br>
-The PHP League CSV - https://github.com/thephpleague/csv
-Carbon Date : https://carbon.nesbot.com/
+The PHP League CSV - https://github.com/thephpleague/csv<br>
+Carbon Date : https://carbon.nesbot.com/<br>
 
 <h2>Issues/Discussions/New features:</h2>
 Feel free to open an issue in case of a bug or to discuss anything related to the tool or to add a new feature.
@@ -51,4 +50,4 @@ If you would like to develop a PHP application that requires expert level progra
 
 <h2>Repo Activity:</h2>
 
-![Alt](https://repobeats.axiom.co/api/embed/b697a39a301be8feae16fcdf29cb428864b7188b.svg "Repobeats analytics image")
+![Repo Activity](https://repobeats.axiom.co/api/embed/b697a39a301be8feae16fcdf29cb428864b7188b.svg "Repo Activity")
