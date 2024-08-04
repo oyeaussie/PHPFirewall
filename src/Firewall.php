@@ -826,17 +826,23 @@ class Firewall extends Base
             $newFilter['updated_by'] = "000";
             $newFilter['updated_at'] = time();
             $newFilter['filter_type'] = $this->config['default_filter'];
-            $this->addFilter($newFilter, true);
+            $filter = $this->addFilter($newFilter, true);
         }
 
         $this->setMicroTimer('defaultCheckIpFilter', true);
 
         if ($this->config['default_filter'] === 'allow') {
-            $this->addResponse('Allowed by default firewall filter', 0);
+            $this->addResponse('Allowed by default firewall filter', 0, ['filter' => $filter]);
 
             return true;
         } else if ($this->config['default_filter'] === 'block') {
-            $this->addResponse('Blocked by default firewall filter', 1);
+            if ($this->config['status'] === 'monitor') {
+                $this->addResponse('IP address is blocked, but firewall status is monitor so ip address is allowed!', 2, ['filter' => $filter]);
+
+                return true;
+            }
+
+            $this->addResponse('Blocked by default firewall filter', 1, ['filter' => $filter]);
 
             return false;
         }
