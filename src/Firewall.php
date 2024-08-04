@@ -172,7 +172,7 @@ class Firewall extends Base
                 }
             }
 
-            $this->addResponse('Ok', 0, ['filter' => $filter]);
+            $this->addResponse('Ok', 0, ['default_filter' => $defaultStore, 'filter' => $filter]);
 
             return $filter;
         }
@@ -832,17 +832,17 @@ class Firewall extends Base
         $this->setMicroTimer('defaultCheckIpFilter', true);
 
         if ($this->config['default_filter'] === 'allow') {
-            $this->addResponse('Allowed by default firewall filter', 0, ['filter' => $filter]);
+            $this->addResponse('Allowed', 0, ['default_filter' => true, 'filter' => $filter]);
 
             return true;
         } else if ($this->config['default_filter'] === 'block') {
             if ($this->config['status'] === 'monitor') {
-                $this->addResponse('IP address is blocked, but firewall status is monitor so ip address is allowed!', 2, ['filter' => $filter]);
+                $this->addResponse('IP address is blocked, but firewall status is monitor so ip address is allowed!', 2, ['default_filter' => true, 'filter' => $filter]);
 
                 return true;
             }
 
-            $this->addResponse('Blocked by default firewall filter', 1, ['filter' => $filter]);
+            $this->addResponse('Blocked', 1, ['default_filter' => true, 'filter' => $filter]);
 
             return false;
         }
@@ -912,7 +912,7 @@ class Firewall extends Base
                 $filter['parent_filter'] = $parentFilter;
             }
 
-            $this->addResponse($status, $code, ['filter' => $filter]);
+            $this->addResponse($status, $code, ['default_filter' => $defaultStore, 'filter' => $filter]);
 
             return true;
         }
@@ -922,7 +922,7 @@ class Firewall extends Base
                 $filter['parent_filter'] = $parentFilter;
             }
 
-            $this->addResponse('IP address is blocked, but firewall status is monitor so ip address is allowed!', 2, ['filter' => $filter]);
+            $this->addResponse('IP address is blocked, but firewall status is monitor so ip address is allowed!', 2, ['default_filter' => $defaultStore, 'filter' => $filter]);
 
             return true;
         }
@@ -931,7 +931,7 @@ class Firewall extends Base
             $filter['parent_filter'] = $parentFilter;
         }
 
-        $this->addResponse('Blocked', 1, ['filter' => $filter]);
+        $this->addResponse('Blocked', 1, ['default_filter' => $defaultStore, 'filter' => $filter]);
 
         return false;
     }
