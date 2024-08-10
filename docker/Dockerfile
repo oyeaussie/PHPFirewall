@@ -12,39 +12,17 @@ RUN apk add --update --no-cache zip
 RUN apk add --update --no-cache vim
 RUN apk add --update --no-cache openssh
 RUN apk add --update --no-cache openrc
-RUN apk add --update --no-cache apache2
-RUN apk add --update --no-cache apache2-proxy
-RUN apk add --update --no-cache php83-apache2
+RUN apk add --update --no-cache lighttpd
+RUN apk add --update --no-cache php83
+RUN apk add --update --no-cache fcgi
+RUN apk add --update --no-cache php83-cgi
 RUN apk add --update --no-cache shadow
 RUN mkdir -p /run/openrc/exclusive
 RUN touch /run/openrc/softlevel
-RUN rc-update add apache2
+RUN rc-update add lighttpd default
 
 RUN docker-php-ext-configure pcntl --enable-pcntl && docker-php-ext-install pcntl
 RUN docker-php-ext-configure bcmath --enable-bcmath && docker-php-ext-install bcmath
-
-RUN cat <<EOF > /etc/apache2/conf.d/phpfirewall.conf
-<VirtualHost *:80>
-    DocumentRoot /home/admin/public/
-
-    ErrorLog ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined
-
-    ProxyPassMatch ^/(.*\.php(/.*)?)$ fcgi://127.0.0.1:9000/home/admin/public/$1
-    DirectoryIndex /index.php index.php
-
-    <Directory /home/admin/public/>
-        Options -Indexes
-        AllowOverride All
-        Order allow,deny
-        allow from all
-    </Directory>
-</VirtualHost>
-<IfModule unixd_module>
-User admin
-Group admin
-</IfModule>
-EOF
 
 RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 RUN php composer-setup.php
@@ -66,8 +44,11 @@ RUN mkdir /home/admin/terminaldata
 RUN mkdir /home/admin/firewalldata
 RUN mkdir /home/admin/public
 
+RUN mv /etc/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf.org
+COPY lighttpd.conf /etc/lighttpd/
 COPY index.php ./public/
 RUN chown -R admin:admin /home/admin
+RUN chown -R admin:admin /var/log/lighttpd/
 # Running
 # docker run -d --name phpfirewall -h phpfirewall oyeaussie/phpfirewall
 # Grab IP
