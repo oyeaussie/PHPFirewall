@@ -397,6 +397,28 @@ class Firewall extends Base
                     return false;
                 }
 
+                if ($data['address_type'] === 'host' &&
+                    str_contains($data['address'], '/')
+                ) {
+                    $this->addResponse('Please type correct host address.', 1);
+
+                    return false;
+                }
+
+                if ($data['address_type'] === 'network') {
+                    try {
+                        if (str_contains($data['address'], ':')) {
+                            $range = $this->ip2location->ipTools->cidrToIpv6($data['address']);
+                        } else {
+                            $range = $this->ip2location->ipTools->cidrToIpv4($data['address']);
+                        }
+                    } catch (\throwable $e) {
+                        $this->addResponse('Please type correct network address. Format is CIDR - network address/network mask', 1);
+
+                        return false;
+                    }
+                }
+
                 $address = explode('/', $data['address'])[0];
 
                 if (!$this->validateIP($address)) {
