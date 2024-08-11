@@ -817,6 +817,12 @@ class Firewall extends Base
                     if ($filterRule) {
                         $filter = $this->getFilterById($filterRule);
 
+                        if (isset($filter['ip2location_proxy']) && $filter['ip2location_proxy'] === 'block') {
+                            if (isset($response['is_proxy']) && $response['is_proxy'] === true) {
+                                $filter['filter_type'] = 'block';
+                            }
+                        }
+
                         $ip2locationCheckIpFilter = $this->checkIPFilter($filter, $ip);
 
                         $this->setMicroTimer('ip2location' . $ip2locationLookupOptionsMethod . 'CheckIpFilter', true);

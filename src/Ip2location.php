@@ -82,6 +82,11 @@ class Ip2location
             $ipDetails['country_name'] = $ipDetailsArr['countryName'];
             $ipDetails['region_name'] = $ipDetailsArr['regionName'];
             $ipDetails['city_name'] = $ipDetailsArr['cityName'];
+            $ipDetails['is_proxy'] = false;
+            $ipDetails['proxy_type'] = '-';
+            if ($ipProxyDetails = $this->getIpDetailsFromIp2locationProxyBIN($ip)) {
+                $ipDetails = array_merge($ipDetails, $ipProxyDetails);
+            }
 
             $this->firewall->addResponse('Details for IP: ' . $ip . ' retrieved successfully using BIN file.', 0, ['ip_details' => $ipDetails]);
 
