@@ -603,13 +603,9 @@ class Firewall extends Base
         $newFilter = $this->addFilter($filter);
 
         if ($newFilter) {
-            $deleteFilter = $this->removeFilter($oldFilterId, true);
+            $this->addResponse('Filter moved to main store. New ID: ' . $newFilter['id']);
 
-            if ($deleteFilter) {
-                $this->addResponse('Filter moved to main store. New ID: ' . $newFilter['id']);
-
-                return true;
-            }
+            return true;
         }
 
         $this->addResponse('Error moving filter', 1);
