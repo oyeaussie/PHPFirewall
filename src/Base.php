@@ -563,7 +563,7 @@ abstract class Base
         $csv = Writer::createFromString();
 
         $header = [
-            "filter_store","filter_type","address_type","address","updated_by","updated_at","hit_count","parent_id","id"
+            "filter_store","filter_type","address_type","address","ip2location_proxy","updated_by","updated_at","hit_count","parent_id","id"
         ];
 
         $csv->insertOne($header);
