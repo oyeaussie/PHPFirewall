@@ -3,3 +3,4 @@ composer.lock
 terminaldata/*
 firewalldata/*
 composer.install
+tests/firewalldata/*

@@ -19,14 +19,18 @@ class Geo
 
     protected $firewallGeoCitiesStore;
 
-    public function __construct(Firewall $firewall)
+    public function __construct(Firewall $firewall, $dataPath = null)
     {
         $this->firewall = $firewall;
 
-        if (str_contains(__DIR__, '/vendor/')) {
-            $this->dataPath = $this->firewall->dataPath . 'geodata';
+        if ($dataPath) {
+            $this->dataPath = $dataPath . '/geodata';
         } else {
-            $this->dataPath = fwbase_path($this->firewall->dataPath . 'geodata');
+            if (str_contains(__DIR__, '/vendor/')) {
+                $this->dataPath = $this->firewall->dataPath . 'geodata';
+            } else {
+                $this->dataPath = fwbase_path($this->firewall->dataPath . 'geodata');
+            }
         }
 
         $this->checkGeoPath();

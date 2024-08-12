@@ -25,11 +25,11 @@ class Firewall extends Base
     {
         parent::__construct($createRoot, $dataPath);
 
-        $this->geo = new Geo($this);
+        $this->geo = new Geo($this, $dataPath);
 
-        $this->indexes = new Indexes($this);
+        $this->indexes = new Indexes($this, $dataPath);
 
-        $this->ip2location = new Ip2location($this);
+        $this->ip2location = new Ip2location($this, $dataPath);
     }
 
     public function getFiltersCount($defaultStore = false)
@@ -350,6 +350,8 @@ class Firewall extends Base
 
     public function addFilter(array $data, $defaultStore = false)
     {
+        $data = $this->normalizeFilterData($data);
+
         if (!isset($data['filter_type']) ||
             (isset($data['filter_type']) &&
              ($data['filter_type'] !== 'allow' &&
@@ -500,8 +502,26 @@ class Firewall extends Base
         return $newFilter;
     }
 
+    protected function normalizeFilterData($data)
+    {
+        $filterFields =
+            [
+                'id', 'filter_type', 'address_type', 'address', 'ip_hits', 'hit_count', 'updated_by', 'updated_at', 'ip2location_proxy'
+            ];
+
+        array_walk($data, function($value, $index) use (&$data, $filterFields) {
+            if (!in_array($index, $filterFields)) {
+                unset($data[$index]);
+            }
+        });
+
+        return $data;
+    }
+
     public function updateFilter(array $data, $defaultStore = false)
     {
+        $data = $this->normalizeFilterData($data);
+
         if (!isset($data['id'])) {
             $this->addResponse('Please provide correct filter ID', 1);
 

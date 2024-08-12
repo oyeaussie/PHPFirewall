@@ -89,11 +89,7 @@ abstract class Base
             "folder_permissions" => 0777
         ];
 
-        $this->firewallConfigStore = new Store("firewall_config", $this->databaseDirectory, $this->storeConfiguration);
-
-        $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
-
-        $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
+        $this->initStores();
 
         $this->getConfig();
 
@@ -126,6 +122,15 @@ abstract class Base
                 ]
             );
         }
+    }
+
+    public function initStores()
+    {
+        $this->firewallConfigStore = new Store("firewall_config", $this->databaseDirectory, $this->storeConfiguration);
+
+        $this->firewallFiltersStore = new Store("firewall_filters", $this->databaseDirectory, $this->storeConfiguration);
+
+        $this->firewallFiltersDefaultStore = new Store("firewall_filters_default", $this->databaseDirectory, $this->storeConfiguration);
     }
 
     public function getFirewallConfig()
@@ -313,62 +318,86 @@ abstract class Base
 
     public function setIp2locationBinFileCode($fileCode)
     {
-        if ($fileCode === '') {
+        if ($fileCode === 'null') {
+            $fileCode = null;
+        } else {
+            $fileCode = strtoupper($fileCode);
+        }
+
+        if ($fileCode &&
+            ($fileCode === '' ||
+             ($fileCode !== 'DB3LITEBINIPV6' && $fileCode !== 'DB3BINIPV6')
+            )
+        ) {
             $this->addResponse('Please provide correct file code.', 1);
 
             return false;
         }
 
-        if ($fileCode === 'null') {
-            $fileCode = null;
-        }
-
-        return $this->updateConfig(['ip2location_bin_file_code' => strtoupper($fileCode)]);
+        return $this->updateConfig(['ip2location_bin_file_code' => $fileCode]);
     }
 
     public function setIp2locationBinAccessMode($accessMode)
     {
-        if ($accessMode === '') {
-            $this->addResponse('Please provide correct file mode.', 1);
+        if ($accessMode === 'null') {
+            $accessMode = null;
+        } else {
+            $accessMode = strtoupper($accessMode);
+        }
+
+        if ($accessMode &&
+            ($accessMode === '' ||
+             ($accessMode !== 'SHARED_MEMORY' && $accessMode !== 'MEMORY_CACHE' && $accessMode !== 'FILE_IO')
+            )
+        ) {
+            $this->addResponse('Please provide correct access mode.', 1);
 
             return false;
         }
 
-        if ($accessMode === 'null') {
-            $accessMode = null;
-        }
-
-        return $this->updateConfig(['ip2location_bin_access_mode' => strtoupper($accessMode)]);
+        return $this->updateConfig(['ip2location_bin_access_mode' => $accessMode]);
     }
 
     public function setIp2locationProxyBinFileCode($fileCode)
     {
-        if ($fileCode === '') {
+        if ($fileCode === 'null') {
+            $fileCode = null;
+        } else {
+            $fileCode = strtoupper($fileCode);
+        }
+
+        if ($fileCode &&
+            ($fileCode === '' ||
+             ($fileCode !== 'PX3BIN' && $fileCode !== 'PX3LITEBIN')
+            )
+        ) {
             $this->addResponse('Please provide correct proxy file code.', 1);
 
             return false;
         }
 
-        if ($fileCode === 'null') {
-            $fileCode = null;
-        }
-
-        return $this->updateConfig(['ip2location_proxy_bin_file_code' => strtoupper($fileCode)]);
+        return $this->updateConfig(['ip2location_proxy_bin_file_code' => $fileCode]);
     }
 
     public function setIp2locationProxyBinAccessMode($accessMode)
     {
-        if ($accessMode === '') {
-            $this->addResponse('Please provide correct proxy file mode.', 1);
+        if ($accessMode === 'null') {
+            $accessMode = null;
+        } else {
+            $accessMode = strtoupper($accessMode);
+        }
+
+        if ($accessMode &&
+            ($accessMode === '' ||
+             ($accessMode !== 'SHARED_MEMORY' && $accessMode !== 'MEMORY_CACHE' && $accessMode !== 'FILE_IO')
+            )
+        ) {
+            $this->addResponse('Please provide correct proxy access mode.', 1);
 
             return false;
         }
 
-        if ($accessMode === 'null') {
-            $accessMode = null;
-        }
-
-        return $this->updateConfig(['ip2location_proxy_bin_access_mode' => strtoupper($accessMode)]);
+        return $this->updateConfig(['ip2location_proxy_bin_access_mode' => $accessMode]);
     }
 
     public function setConfigIp2locationIoKey($key)
@@ -415,7 +444,7 @@ abstract class Base
             return false;
         }
 
-        return $this->updateConfig(['ip2location_primary_lookup_method' => strtoupper($lookupMethod)]);
+        return $this->updateConfig(['ip2location_primary_lookup_method' => $lookupMethod]);
     }
 
     public function setConfigIp2locationBinDownloadDate()

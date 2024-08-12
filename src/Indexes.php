@@ -12,14 +12,18 @@ class Indexes
 
     protected $firewall;
 
-    public function __construct(Firewall $firewall)
+    public function __construct(Firewall $firewall, $dataPath = null)
     {
         $this->firewall = $firewall;
 
-        if (str_contains(__DIR__, '/vendor/')) {
-            $this->dataPath = $this->firewall->dataPath . 'indexes';
+        if ($dataPath) {
+            $this->dataPath = $dataPath . '/indexes';
         } else {
-            $this->dataPath = fwbase_path($this->firewall->dataPath . 'indexes');
+            if (str_contains(__DIR__, '/vendor/')) {
+                $this->dataPath = $this->firewall->dataPath . 'indexes';
+            } else {
+                $this->dataPath = fwbase_path($this->firewall->dataPath . 'indexes');
+            }
         }
 
         $this->checkIndexesPath();

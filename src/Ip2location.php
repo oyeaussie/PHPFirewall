@@ -26,7 +26,7 @@ class Ip2location
 
     protected $firewall;
 
-    public function __construct(Firewall $firewall)
+    public function __construct(Firewall $firewall, $dataPath = null)
     {
         $this->firewall = $firewall;
 
@@ -40,10 +40,14 @@ class Ip2location
             $this->ipGeoLocation = new IPGeolocation($ip2locationIoConfiguration);
         }
 
-        if (str_contains(__DIR__, '/vendor/')) {
-            $this->dataPath = $this->firewall->dataPath . 'ip2locationdata';
+        if ($dataPath) {
+            $this->dataPath = $dataPath . '/ip2locationdata';
         } else {
-            $this->dataPath = fwbase_path($this->firewall->dataPath . 'ip2locationdata');
+            if (str_contains(__DIR__, '/vendor/')) {
+                $this->dataPath = $this->firewall->dataPath . 'ip2locationdata';
+            } else {
+                $this->dataPath = fwbase_path($this->firewall->dataPath . 'ip2locationdata');
+            }
         }
 
         $this->checkIp2locationPath();
@@ -366,7 +370,7 @@ class Ip2location
         return true;
     }
 
-    protected function initStores()
+    public function initStores()
     {
         $this->firewallFiltersIp2locationStore = new Store("firewall_filters_ip2location", $this->firewall->databaseDirectory, $this->firewall->storeConfiguration);
     }
