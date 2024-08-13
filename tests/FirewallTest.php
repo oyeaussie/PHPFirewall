@@ -96,19 +96,19 @@ class FirewallTest extends \Codeception\Test\Unit
     /**
      * @depends testSetConfigAutoUnblockIpMinutes
      */
-    public function testSetAutoIndexing()
+    public function testSetConfigAutoIndexing()
     {
-        $this->firewall->setAutoIndexing('disable');
+        $this->firewall->setConfigAutoIndexing('disable');
         $autoIndexing = $this->firewall->getFirewallConfig()['response']['responseData']['auto_indexing'];
         $this->assertFalse($autoIndexing);
 
-        $this->firewall->setAutoIndexing('enable');
+        $this->firewall->setConfigAutoIndexing('enable');
         $autoIndexing = $this->firewall->getFirewallConfig()['response']['responseData']['auto_indexing'];
         $this->assertTrue($autoIndexing);
     }
 
     /**
-     * @depends testSetAutoIndexing
+     * @depends testSetConfigAutoIndexing
      */
     public function testSetConfigIp2locationIoKey()
     {
@@ -138,106 +138,120 @@ class FirewallTest extends \Codeception\Test\Unit
     /**
      * @depends testSetConfigIp2locationKey
      */
-    public function testSetIp2locationPrimaryLookupMethod()
+    public function testSetConfigIp2locationPrimaryLookupMethod()
     {
-        $this->firewall->setIp2locationPrimaryLookupMethod('bin');
+        $this->firewall->setConfigIp2locationPrimaryLookupMethod('bin');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_primary_lookup_method'];
         $this->assertEquals($method, 'BIN');
 
-        $this->firewall->setIp2locationPrimaryLookupMethod('api');
+        $this->firewall->setConfigIp2locationPrimaryLookupMethod('api');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_primary_lookup_method'];
         $this->assertEquals($method, 'API');
 
-        $method = $this->firewall->setIp2locationPrimaryLookupMethod('abc123');
+        $method = $this->firewall->setConfigIp2locationPrimaryLookupMethod('abc123');
         $this->assertFalse($method);
     }
 
     /**
-     * @depends testSetIp2locationPrimaryLookupMethod
+     * @depends testSetConfigIp2locationPrimaryLookupMethod
      */
-    public function testSetIp2locationBinFileCode()
+    public function testSetConfigIp2locationBinFileCode()
     {
-        $this->firewall->setIp2locationBinFileCode('DB3BINIPV6');
+        $this->firewall->setConfigIp2locationBinFileCode('DB3BINIPV6');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_bin_file_code'];
         $this->assertEquals($method, 'DB3BINIPV6');
 
-        $this->firewall->setIp2locationBinFileCode('DB3LITEBINIPV6');
+        $this->firewall->setConfigIp2locationBinFileCode('DB3LITEBINIPV6');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_bin_file_code'];
         $this->assertEquals($method, 'DB3LITEBINIPV6');
 
-        $method = $this->firewall->setIp2locationBinFileCode('abc123');
+        $method = $this->firewall->setConfigIp2locationBinFileCode('abc123');
         $this->assertFalse($method);
 
-        $this->firewall->setIp2locationBinFileCode('null');
+        $this->firewall->setConfigIp2locationBinFileCode('null');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_bin_file_code'];
         $this->assertNull($method);
     }
 
     /**
-     * @depends testSetIp2locationBinFileCode
+     * @depends testSetConfigIp2locationBinFileCode
      */
-    public function testSetIp2locationProxyBinFileCode()
+    public function testSetConfigIp2locationProxyBinFileCode()
     {
-        $this->firewall->setIp2locationProxyBinFileCode('PX3LITEBIN');
+        $this->firewall->setConfigIp2locationProxyBinFileCode('PX3LITEBIN');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_proxy_bin_file_code'];
         $this->assertEquals($method, 'PX3LITEBIN');
 
-        $this->firewall->setIp2locationProxyBinFileCode('PX3BIN');
+        $this->firewall->setConfigIp2locationProxyBinFileCode('PX3BIN');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_proxy_bin_file_code'];
         $this->assertEquals($method, 'PX3BIN');
 
-        $method = $this->firewall->setIp2locationProxyBinFileCode('abc123');
+        $method = $this->firewall->setConfigIp2locationProxyBinFileCode('abc123');
         $this->assertFalse($method);
 
-        $this->firewall->setIp2locationProxyBinFileCode('null');
+        $this->firewall->setConfigIp2locationProxyBinFileCode('null');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_proxy_bin_file_code'];
         $this->assertNull($method);
     }
 
     /**
-     * @depends testSetIp2locationProxyBinFileCode
+     * @depends testSetConfigIp2locationProxyBinFileCode
      */
-    public function testSetIp2locationBinAccessMode()
+    public function testSetConfigIp2locationBinAccessMode()
     {
-        $this->firewall->setIp2locationBinAccessMode('SHARED_MEMORY');
+        $this->firewall->setConfigIp2locationBinAccessMode('SHARED_MEMORY');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_bin_access_mode'];
         $this->assertEquals($method, 'SHARED_MEMORY');
 
-        $this->firewall->setIp2locationBinAccessMode('MEMORY_CACHE');
+        $this->firewall->setConfigIp2locationBinAccessMode('MEMORY_CACHE');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_bin_access_mode'];
         $this->assertEquals($method, 'MEMORY_CACHE');
 
-        $this->firewall->setIp2locationBinAccessMode('FILE_IO');
+        $this->firewall->setConfigIp2locationBinAccessMode('FILE_IO');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_bin_access_mode'];
         $this->assertEquals($method, 'FILE_IO');
 
-        $method = $this->firewall->setIp2locationBinAccessMode('abc123');
+        $method = $this->firewall->setConfigIp2locationBinAccessMode('abc123');
         $this->assertFalse($method);
     }
 
     /**
-     * @depends testSetIp2locationBinAccessMode
+     * @depends testSetConfigIp2locationBinAccessMode
      */
-    public function testSetIp2locationProxyBinAccessMode()
+    public function testSetConfigIp2locationProxyBinAccessMode()
     {
-        $this->firewall->setIp2locationProxyBinAccessMode('SHARED_MEMORY');
+        $this->firewall->setConfigIp2locationProxyBinAccessMode('SHARED_MEMORY');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_proxy_bin_access_mode'];
         $this->assertEquals($method, 'SHARED_MEMORY');
 
-        $this->firewall->setIp2locationProxyBinAccessMode('MEMORY_CACHE');
+        $this->firewall->setConfigIp2locationProxyBinAccessMode('MEMORY_CACHE');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_proxy_bin_access_mode'];
         $this->assertEquals($method, 'MEMORY_CACHE');
 
-        $this->firewall->setIp2locationProxyBinAccessMode('FILE_IO');
+        $this->firewall->setConfigIp2locationProxyBinAccessMode('FILE_IO');
         $method = $this->firewall->getFirewallConfig()['response']['responseData']['ip2location_proxy_bin_access_mode'];
         $this->assertEquals($method, 'FILE_IO');
 
-        $method = $this->firewall->setIp2locationProxyBinAccessMode('abc123');
+        $method = $this->firewall->setConfigIp2locationProxyBinAccessMode('abc123');
         $this->assertFalse($method);
     }
 
     /**
-     * @depends testSetIp2locationProxyBinAccessMode
+     * @depends testSetConfigIp2locationBinAccessMode
+     */
+    public function testSetConfigLogFilterAllowed()
+    {
+        $this->firewall->setConfigLogFilterAllowed('enable');
+        $logFilterAllowed = $this->firewall->getFirewallConfig()['response']['responseData']['log_filter_allowed'];
+        $this->assertTrue($logFilterAllowed);
+
+        $this->firewall->setConfigLogFilterAllowed('disable');
+        $logFilterAllowed = $this->firewall->getFirewallConfig()['response']['responseData']['log_filter_allowed'];
+        $this->assertFalse($logFilterAllowed);
+    }
+
+    /**
+     * @depends testSetConfigLogFilterAllowed
      */
     public function testAddFilters()
     {

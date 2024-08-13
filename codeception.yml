@@ -10,8 +10,6 @@ paths:
     output: tests/_output
     support: tests/_support
     data: tests
-params:
-    - testconfig.php
 modules:
     enabled:
         - \Helper\Phpfirewall

@@ -51,7 +51,8 @@
         "rakibtg/sleekdb": "*",
         "nesbot/carbon": "*",
         "guzzlehttp/guzzle": "^7.8",
-        "league/flysystem": "^3.28"
+        "league/flysystem": "^3.28",
+        "monolog/monolog": "^3.7"
     },
     "autoload":
     {

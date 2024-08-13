@@ -10,6 +10,10 @@ use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use League\Flysystem\UnableToWriteFile;
+use Monolog\Formatter\JsonFormatter;
+use Monolog\Handler\RotatingFileHandler;
+use Monolog\Level;
+use Monolog\Logger;
 use PHPFirewall\Response;
 use SleekDB\Store;
 use cli\progress\Bar;
@@ -33,6 +37,10 @@ abstract class Base
     public $trackCounter;
 
     public $trackTicksCounter;
+
+    public $filterLogger;
+
+    public $systemLogger;
 
     protected $firewallConfigStore;
 
@@ -118,10 +126,21 @@ abstract class Base
                     'ip2location_io_api_key'                => null,
                     'ip2location_io_api_language'           => null,
                     'ip2location_primary_lookup_method'     => 'API',//API/BIN
-                    'geodata_download_date'                 => null
+                    'geodata_download_date'                 => null,
+                    'log_filter_allowed'                    => false//only enable for debugging
                 ]
             );
         }
+
+        $filterStream = new RotatingFileHandler($this->dataPath . '/logs/filter.log', 0, Level::Debug);
+        $filterStream->setFormatter(new JsonFormatter);
+        $this->filterLogger = new Logger('filter');
+        $this->filterLogger->pushHandler($filterStream);
+
+        $systemStream = new RotatingFileHandler($this->dataPath . '/logs/system.log', 0, Level::Debug);
+        $systemStream->setFormatter(new JsonFormatter);
+        $this->systemLogger = new Logger('system');
+        $this->systemLogger->pushHandler($systemStream);
     }
 
     public function initStores()
@@ -274,7 +293,7 @@ abstract class Base
         return $this->updateConfig(['auto_unblock_ip_minutes' => $minutes]);
     }
 
-    public function setAutoIndexing($status)
+    public function setConfigAutoIndexing($status)
     {
         $status = strtolower($status);
 
@@ -316,7 +335,7 @@ abstract class Base
         return $this->updateConfig($arr);
     }
 
-    public function setIp2locationBinFileCode($fileCode)
+    public function setConfigIp2locationBinFileCode($fileCode)
     {
         if ($fileCode === 'null') {
             $fileCode = null;
@@ -337,7 +356,7 @@ abstract class Base
         return $this->updateConfig(['ip2location_bin_file_code' => $fileCode]);
     }
 
-    public function setIp2locationBinAccessMode($accessMode)
+    public function setConfigIp2locationBinAccessMode($accessMode)
     {
         if ($accessMode === 'null') {
             $accessMode = null;
@@ -358,7 +377,7 @@ abstract class Base
         return $this->updateConfig(['ip2location_bin_access_mode' => $accessMode]);
     }
 
-    public function setIp2locationProxyBinFileCode($fileCode)
+    public function setConfigIp2locationProxyBinFileCode($fileCode)
     {
         if ($fileCode === 'null') {
             $fileCode = null;
@@ -379,7 +398,7 @@ abstract class Base
         return $this->updateConfig(['ip2location_proxy_bin_file_code' => $fileCode]);
     }
 
-    public function setIp2locationProxyBinAccessMode($accessMode)
+    public function setConfigIp2locationProxyBinAccessMode($accessMode)
     {
         if ($accessMode === 'null') {
             $accessMode = null;
@@ -432,7 +451,7 @@ abstract class Base
         return $this->updateConfig(['ip2location_io_api_language' => $language]);
     }
 
-    public function setIp2locationPrimaryLookupMethod($lookupMethod)
+    public function setConfigIp2locationPrimaryLookupMethod($lookupMethod)
     {
         $lookupMethod = strtoupper($lookupMethod);
 
@@ -472,13 +491,46 @@ abstract class Base
         return $this->updateConfig(['geodata_download_date' => time()]);
     }
 
+    public function setConfigLogFilterAllowed($status)
+    {
+        $status = strtolower($status);
+
+        if ($status !== 'enable' &&
+            $status !== 'disable'
+        ) {
+            $this->addResponse('Please provide correct status.', 1);
+
+            return false;
+        }
+
+        return $this->updateConfig(['log_filter_allowed' => ($status === 'enable' ? true : false)]);
+    }
+
     public function updateConfig($config)
     {
         $this->config = array_replace($this->config = $this->getConfig(), $config);
 
+        $this->config = $this->normalizeConfigData($this->config);
+
         $this->firewallConfigStore->update($this->config);
 
         return $this->getConfig();
+    }
+
+    protected function normalizeConfigData($data)
+    {
+        $configFields =
+            [
+                'id', 'status', 'filter_ipv4', 'filter_ipv6', 'allow_private_range', 'allow_reserved_range', 'default_filter', 'default_filter_hit_count', 'auto_unblock_ip_minutes', 'auto_indexing', 'ip2location_api_key', 'ip2location_bin_file_code', 'ip2location_bin_access_mode', 'ip2location_bin_version', 'ip2location_bin_download_date', 'ip2location_proxy_bin_file_code', 'ip2location_proxy_bin_access_mode', 'ip2location_proxy_bin_version', 'ip2location_proxy_bin_download_date', 'ip2location_io_api_key', 'ip2location_io_api_language', 'ip2location_primary_lookup_method', 'geodata_download_date', 'log_filter_allowed'
+            ];
+
+        array_walk($data, function($value, $index) use (&$data, $configFields) {
+            if (!in_array($index, $configFields)) {
+                unset($data[$index]);
+            }
+        });
+
+        return $data;
     }
 
     public function setLocalContent($createRoot = false, $dataPath = null)
@@ -744,6 +796,12 @@ abstract class Base
 
         if (!is_dir($dataPath . 'backup')) {
             if (!mkdir($dataPath . 'backup', 0777, true)) {
+                return false;
+            }
+        }
+
+        if (!is_dir($dataPath . 'logs')) {
+            if (!mkdir($dataPath . 'logs', 0777, true)) {
                 return false;
             }
         }
