@@ -887,7 +887,7 @@ class Firewall extends Base
             $this->addResponse('Allowed', 0, ['default_filter' => true, 'filter' => $filter]);
 
             if ($this->config['log_filter_allowed'] === true) {
-                $this->filterLogger->notice('ALLOWED', ['ip' => $this->ip, 'filter_id' => $filter['id']]);
+                $this->filterLogger->notice('ALLOWED', ['ip' => $this->ip, 'filters_store'=> 'default', 'filter_id' => $filter['id']]);
             }
 
             return true;
@@ -898,7 +898,7 @@ class Firewall extends Base
                 return true;
             }
 
-            $this->filterLogger->notice('BLOCKED', ['ip' => $this->ip, 'filter_id' => $filter['id']]);
+            $this->filterLogger->notice('BLOCKED', ['ip' => $this->ip, 'filters_store'=> 'default', 'filter_id' => $filter['id']]);
 
             $this->addResponse('Blocked', 1, ['default_filter' => true, 'filter' => $filter]);
 
@@ -971,7 +971,7 @@ class Firewall extends Base
             }
 
             if ($status === 'Allowed' && $this->config['log_filter_allowed'] === true) {
-                $this->filterLogger->notice('ALLOWED', ['ip' => $this->ip, 'filter_id' => $filter['id']]);
+                $this->filterLogger->notice('ALLOWED', ['ip' => $this->ip, 'filters_store'=> 'main', 'filter_id' => $filter['id']]);
             }
 
             $this->addResponse($status, $code, ['default_filter' => $defaultStore, 'filter' => $filter]);
@@ -993,7 +993,7 @@ class Firewall extends Base
             $filter['parent_filter'] = $parentFilter;
         }
 
-        $this->filterLogger->notice('BLOCKED', ['ip' => $this->ip, 'filter_id' => $filter['id']]);
+        $this->filterLogger->notice('BLOCKED', ['ip' => $this->ip, 'filters_store'=> 'main', 'filter_id' => $filter['id']]);
 
         $this->addResponse('Blocked', 1, ['default_filter' => $defaultStore, 'filter' => $filter]);
 
