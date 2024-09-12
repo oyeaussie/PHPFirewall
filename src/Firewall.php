@@ -110,7 +110,7 @@ class Firewall extends Base
                 if (count($ip2locationSortArr) > 0) {
                     ksort($ip2locationSortArr);
 
-                    foreach ($ip2locationSortArr as $ip2locationSortKey => $ip2locationSort) {
+                    foreach (array_keys($ip2locationSortArr) as $ip2locationSortKey) {
                         $filters = array_merge($filters, $ip2locationSortArr[$ip2locationSortKey]);
                     }
                 }
@@ -390,7 +390,6 @@ class Firewall extends Base
 
         if (isset($data['address'])) {
             if ($data['address_type'] === 'host' || $data['address_type'] === 'network') {
-
                 if ($data['address_type'] === 'network' &&
                     !str_contains($data['address'], '/')
                 ) {
@@ -408,13 +407,13 @@ class Firewall extends Base
                 }
 
                 if ($data['address_type'] === 'network') {
-                    try {
-                        if (str_contains($data['address'], ':')) {
-                            $range = $this->ip2location->ipTools->cidrToIpv6($data['address']);
-                        } else {
-                            $range = $this->ip2location->ipTools->cidrToIpv4($data['address']);
-                        }
-                    } catch (\throwable $e) {
+                    if (str_contains($data['address'], ':')) {
+                        $range = $this->ip2location->ipTools->cidrToIpv6($data['address']);
+                    } else {
+                        $range = $this->ip2location->ipTools->cidrToIpv4($data['address']);
+                    }
+
+                    if (!isset($range['ip_start']) && !isset($range['ip_end'])) {
                         $this->addResponse('Please type correct network address. Format is CIDR - network address/network mask', 1);
 
                         return false;
@@ -622,8 +621,6 @@ class Firewall extends Base
             return false;
         }
 
-        $oldFilterId = $filter['id'];
-
         unset($filter['id']);
 
         $newFilter = $this->addFilter($filter);
@@ -695,7 +692,7 @@ class Firewall extends Base
             $allow_reserved_range = false;
         }
 
-        if (!$allow_private_range) {
+        if (!$allow_reserved_range) {
             if (!filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE)) {
                 $this->addResponse('Please enter correct ip address, reserved range is not allowed.', 1);
 

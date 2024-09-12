@@ -582,9 +582,7 @@ abstract class Base
             [
                 'progress' => function(
                     $downloadTotal,
-                    $downloadedBytes,
-                    $uploadTotal,
-                    $uploadedBytes
+                    $downloadedBytes
                 ) {
                     if ($downloadTotal === 0 || $downloadedBytes === 0) {
                         return;
@@ -697,8 +695,6 @@ abstract class Base
             $csv = Reader::createFromPath(fwbase_path('firewalldata/backup/' . $fileName), 'r');
 
             $csv->setHeaderOffset(0);
-
-            $header = $csv->getHeader();
 
             $records = $csv->getRecords();
 

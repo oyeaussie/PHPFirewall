@@ -268,6 +268,8 @@ class Indexes
     protected function cleanupPath(array $pathArr)
     {
         foreach ($pathArr as $path) {
+            $path = null;//We dont need path as we will be popping it in the end.
+
             $checkPath = join('/', $pathArr);
 
             $folders = $this->firewall->localContent->listContents($checkPath)->toArray()   ;

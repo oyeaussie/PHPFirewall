@@ -273,7 +273,7 @@ class Ip2location
 
             $renamedFile = false;
 
-            foreach ($folderContents as $key => $content) {
+            foreach ($folderContents as $content) {
                 if ($content instanceof FileAttributes) {
                     if ($proxy &&
                         str_contains($content->path(), '.BIN') &&
