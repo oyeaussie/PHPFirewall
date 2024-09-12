@@ -524,7 +524,7 @@ abstract class Base
                 'id', 'status', 'filter_ipv4', 'filter_ipv6', 'allow_private_range', 'allow_reserved_range', 'default_filter', 'default_filter_hit_count', 'auto_unblock_ip_minutes', 'auto_indexing', 'ip2location_api_key', 'ip2location_bin_file_code', 'ip2location_bin_access_mode', 'ip2location_bin_version', 'ip2location_bin_download_date', 'ip2location_proxy_bin_file_code', 'ip2location_proxy_bin_access_mode', 'ip2location_proxy_bin_version', 'ip2location_proxy_bin_download_date', 'ip2location_io_api_key', 'ip2location_io_api_language', 'ip2location_primary_lookup_method', 'geodata_download_date', 'log_filter_allowed'
             ];
 
-        array_walk($data, function($value, $index) use (&$data, $configFields) {
+        array_walk($data, function(&$value, $index) use (&$data, $configFields) {
             if (!in_array($index, $configFields)) {
                 unset($data[$index]);
             }
