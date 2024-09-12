@@ -510,7 +510,7 @@ class Firewall extends Base
                 'id', 'filter_type', 'address_type', 'address', 'ip_hits', 'hit_count', 'updated_by', 'updated_at', 'ip2location_proxy'
             ];
 
-        array_walk($data, function(&$value, $index) use (&$data, $filterFields) {
+        array_walk($data, function($value, $index) use (&$data, $filterFields) {
             if (!in_array($index, $filterFields)) {
                 unset($data[$index]);
             }
