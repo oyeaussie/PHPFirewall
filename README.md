@@ -1,3 +1,7 @@
+## Awards
+PHPFirewall was awarded 1st prize in the IP2Location Programming Contest 2024
+[IP2Location Programming Contest 2024](https://contest.ip2location.com/winners)
+
 ## Description:
 PHPFirewall is a tool to allow/block connections to your web resource using IP address. The IP address details are either retrieved from local database or by making API calls to IP2Location.io
 
