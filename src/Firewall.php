@@ -7,6 +7,7 @@ use PHPFirewall\Base;
 use PHPFirewall\Geo;
 use PHPFirewall\Indexes;
 use PHPFirewall\Ip2location;
+use PHPFirewall\Profiling;
 use SleekDB\Cache;
 use SleekDB\Classes\IoHelper;
 use Symfony\Component\HttpFoundation\IpUtils;
@@ -21,6 +22,8 @@ class Firewall extends Base
 
     public $ip;
 
+    public $profiling;
+
     public function __construct($createRoot = false, $dataPath = null)
     {
         parent::__construct($createRoot, $dataPath);
@@ -30,6 +33,8 @@ class Firewall extends Base
         $this->indexes = new Indexes($this, $dataPath);
 
         $this->ip2location = new Ip2location($this, $dataPath);
+
+        $this->profiling = new Profiling($this);
     }
 
     public function getFiltersCount($defaultStore = false)
@@ -665,7 +670,6 @@ class Firewall extends Base
 
                 return false;
             }
-
         }
 
         $allow_private_range = true;
@@ -724,7 +728,7 @@ class Firewall extends Base
         }
 
         //Zero Check - We check Ip in Index
-        $this->setMicroTimer('indexesCheckIpFilter', true, true);
+        $this->profiling->setMicroTimer('indexesCheckIpFilter', true, true);
 
         $indexes = $this->indexes->searchIndexes($ip);
 
@@ -734,27 +738,27 @@ class Firewall extends Base
             if ($filter) {
                 $indexesCheckIpFilter = $this->checkIPFilter($filter, false, $indexes[1]);
 
-                $this->setMicroTimer('indexesCheckIpFilter', true);
+                $this->profiling->setMicroTimer('indexesCheckIpFilter', true);
 
                 return $indexesCheckIpFilter;
             }
         }
 
         //First Check - We check HOST entries
-        $this->setMicroTimer('hostCheckIpFilter', true, true);
+        $this->profiling->setMicroTimer('hostCheckIpFilter', true, true);
 
         $filter = $this->getFilterByAddressAndType($ip, 'host');
 
         if ($filter) {//We find the address in address_type host
             $hostCheckIpFilter = $this->checkIPFilter($filter, $ip);
 
-            $this->setMicroTimer('hostCheckIpFilter', true);
+            $this->profiling->setMicroTimer('hostCheckIpFilter', true);
 
             return $hostCheckIpFilter;
         }
 
         //Second Check - We check NETWORK entries
-        $this->setMicroTimer('networkCheckIpFilter', true, true);
+        $this->profiling->setMicroTimer('networkCheckIpFilter', true, true);
 
         $filters = $this->getFilterByType('network');
 
@@ -763,7 +767,7 @@ class Firewall extends Base
                 if (IpUtils::checkIp($ip, $filter['address'])) {
                     $networkCheckIpFilter = $this->checkIPFilter($filter, $ip);
 
-                    $this->setMicroTimer('networkCheckIpFilter', true);
+                    $this->profiling->setMicroTimer('networkCheckIpFilter', true);
 
                     return $networkCheckIpFilter;
                 }
@@ -771,7 +775,7 @@ class Firewall extends Base
         }
 
         //Third Check - We check ip2location as per the primary set first and then secondary if we did not find the entry
-        $this->setMicroTimer('ip2locationCheckIpFilter', true, true);
+        $this->profiling->setMicroTimer('ip2locationCheckIpFilter', true, true);
 
         $ip2locationFilters = [];
 
@@ -846,7 +850,7 @@ class Firewall extends Base
 
                         $ip2locationCheckIpFilter = $this->checkIPFilter($filter, $ip);
 
-                        $this->setMicroTimer('ip2location' . $ip2locationLookupOptionsMethod . 'CheckIpFilter', true);
+                        $this->profiling->setMicroTimer('ip2location' . $ip2locationLookupOptionsMethod . 'CheckIpFilter', true);
 
                         return $ip2locationCheckIpFilter;
                     }
@@ -855,7 +859,7 @@ class Firewall extends Base
         }
 
         //Forth - We check DEFAULT entries
-        $this->setMicroTimer('defaultCheckIpFilter', true, true);
+        $this->profiling->setMicroTimer('defaultCheckIpFilter', true, true);
 
         $this->config['default_filter_hit_count'] = (int) $this->config['default_filter_hit_count'] + 1;
 
@@ -878,7 +882,7 @@ class Firewall extends Base
             $filter = $this->addFilter($newFilter, true);
         }
 
-        $this->setMicroTimer('defaultCheckIpFilter', true);
+        $this->profiling->setMicroTimer('defaultCheckIpFilter', true);
 
         if ($this->config['default_filter'] === 'allow') {
             $this->addResponse('Allowed', 0, ['default_filter' => true, 'filter' => $filter]);
