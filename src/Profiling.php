@@ -29,7 +29,7 @@ class Profiling
         return (microtime(true) - $this->totalMicrotime);
     }
 
-    public function getProcessedMicroTimers($ip)
+    public function getProcessedMicroTimers()
     {
         $microtimers = $this->getMicroTimer();
 

@@ -6,7 +6,7 @@ class FirewallTest extends \Codeception\Test\Unit
 
     protected function _before()
     {
-        include __DIR__ . '/../vendor/autoload.php';
+        require __DIR__ . '/../vendor/autoload.php';
 
         $this->firewall = new \PHPFirewall\Firewall(false, __DIR__ . '/firewalldata');
     }
@@ -237,7 +237,7 @@ class FirewallTest extends \Codeception\Test\Unit
     }
 
     /**
-     * @depends testSetConfigIp2locationBinAccessMode
+     * @depends testSetConfigIp2locationProxyBinAccessMode
      */
     public function testSetConfigLogFilterAllowed()
     {
@@ -255,9 +255,7 @@ class FirewallTest extends \Codeception\Test\Unit
      */
     public function testAddFilters()
     {
-        $this->firewall->localContent->deleteDirectory('db/firewall_filters');
-        $this->firewall->localContent->deleteDirectory('db/firewall_filters_default');
-        $this->firewall->localContent->deleteDirectory('db/firewall_filters_ip2location');
+        $this->cleanup();
 
         $this->firewall->initStores();
 
@@ -329,60 +327,122 @@ class FirewallTest extends \Codeception\Test\Unit
     /**
      * @depends testAddFilters
      */
-    public function testTestFilters()
+    public function testTestHostFilter()
     {
-        $check = $this->firewall->checkIp('8.8.8.9');
+        $ip = '8.8.8.9';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('host database', $this->firewall->getProcessedMicroTimers());
-
-        $check = $this->firewall->checkIp('8.8.8.9');
+        $this->assertStringContainsString('host database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $ip = '8.8.8.9';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->getProcessedMicroTimers());
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+    }
 
-        $check = $this->firewall->checkIp('10.10.10.1');
+    /**
+     * @depends testTestHostFilter
+     */
+    public function testTestDefaultFilter()
+    {
+        $ip = '10.10.10.1';
+        $check = $this->firewall->checkIp($ip);
         $this->assertTrue($check);
-        $this->assertStringContainsString('default database', $this->firewall->getProcessedMicroTimers());
+        $this->assertStringContainsString('default database', $this->firewall->profiling->getProcessedMicroTimers($ip));
         $this->firewall->setConfigDefaultFilter('block');
-        $check = $this->firewall->checkIp('10.10.10.1');
+        $ip = '10.10.10.1';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('default database', $this->firewall->getProcessedMicroTimers());
-        $check = $this->firewall->checkIp('10.10.10.1');
+        $this->assertStringContainsString('default database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $ip = '10.10.10.1';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->getProcessedMicroTimers());
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+    }
 
-        $check = $this->firewall->checkIp('10.100.100.10');
+    /**
+     * @depends testTestDefaultFilter
+     */
+    public function testTestNetworkFilter()
+    {
+        $ip = '10.100.100.10';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('network database', $this->firewall->getProcessedMicroTimers());
-        $check = $this->firewall->checkIp('10.100.100.10');
+        $this->assertStringContainsString('network database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $ip = '10.100.100.10';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->getProcessedMicroTimers());
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+    }
 
-        $check = $this->firewall->checkIp('144.48.38.173');
+    /**
+     * @depends testTestNetworkFilter
+     */
+    public function testTestIp2locationAPIFilter()
+    {
+        $ip = '144.48.38.173';
+        $check = $this->firewall->checkIp($ip);
         $this->assertTrue($check);
-        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->getProcessedMicroTimers());
-        $check = $this->firewall->checkIp('144.48.38.173');
+        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $ip = '144.48.38.173';
+        $check = $this->firewall->checkIp($ip);
         $this->assertTrue($check);
-        $this->assertStringContainsString('indexes', $this->firewall->getProcessedMicroTimers());
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
 
-        $check = $this->firewall->checkIp('86.48.8.224');
-        $this->assertTrue($check);
-        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->getProcessedMicroTimers());
-        $check = $this->firewall->checkIp('86.48.8.224');
-        $this->assertTrue($check);
-        $this->assertStringContainsString('indexes', $this->firewall->getProcessedMicroTimers());
+        $ip = '86.48.8.224';
+        $check = $this->firewall->checkIp($ip);
+        $this->assertFalse($check);
+        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $ip = '86.48.8.224';
+        $check = $this->firewall->checkIp($ip);
+        $this->assertFalse($check);
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
 
-        $check = $this->firewall->checkIp('43.255.45.131');
+        $ip = '43.255.45.131';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->getProcessedMicroTimers());
-        $check = $this->firewall->checkIp('43.255.45.131');
+        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $ip = '43.255.45.131';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->getProcessedMicroTimers());
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
 
-        $check = $this->firewall->checkIp('116.90.72.78');
+        $ip = '116.90.72.78';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->getProcessedMicroTimers());
-        $check = $this->firewall->checkIp('116.90.72.78');
+        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $ip = '116.90.72.78';
+        $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->getProcessedMicroTimers());
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+    }
+
+    /**
+     * @depends testTestIp2locationAPIFilter
+     */
+    public function testPerformCleanup()
+    {
+        $this->firewall->setConfigIp2locationKey(null);
+        $this->firewall->setConfigIp2locationIoKey(null);
+        $this->cleanup();
+    }
+
+    //Move filter from default to main
+    //Test group filters
+    //Modify Filters
+    //Remove Filters
+
+    //Cleanup
+    protected function cleanup()
+    {
+        $this->firewall->setLocalContent(false, __DIR__ . '/firewalldata');
+
+        $this->firewall->localContent->deleteDirectory('db/firewall_filters');
+        $this->firewall->localContent->deleteDirectory('db/firewall_filters_default');
+        $this->firewall->localContent->deleteDirectory('db/firewall_filters_ip2location');
+        $this->firewall->localContent->deleteDirectory('db/firewall_geo_cities');
+        $this->firewall->localContent->deleteDirectory('db/firewall_geo_states');
+        $this->firewall->localContent->deleteDirectory('db/firewall_geo_countries');
+        $this->firewall->localContent->deleteDirectory('indexes');
+
     }
 }
