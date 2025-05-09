@@ -175,7 +175,7 @@ class Ip2location
                 $apiCallResponse = $this->ipGeoLocation->lookup($ip, $this->firewall->config['ip2location_io_api_language']);
 
                 if ($apiCallResponse) {
-                    $apiCallResponse = (array) $apiCallResponse;
+                    $apiCallResponse = json_decode(json_encode($apiCallResponse), true);
 
                     $ipDetails['address'] = $apiCallResponse['ip'];
                     $ipDetails['country_code'] = $apiCallResponse['country_code'];
@@ -197,6 +197,7 @@ class Ip2location
                 }
             } catch (\throwable $e) {
                 //Log here
+                $this->firewall->systemLogger->error('ERROR_IP2LOCATION', [$e->getMessage()]);
                 $this->firewall->addResponse($e->getMessage(), 1);
             }
         } else {
@@ -297,7 +298,7 @@ class Ip2location
                 }
             }
 
-            if (!$renamedFile){
+            if (!$renamedFile) {
                 throw new \Exception('ip2locationdata has no files');
             }
 
