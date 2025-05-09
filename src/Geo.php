@@ -87,7 +87,7 @@ class Geo
     public function downloadGeodataFile()
     {
         $download = $this->firewall->downloadData(
-                'https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/countries%2Bstates%2Bcities.json',
+                'https://github.com/dr5hn/countries-states-cities-database/raw/refs/heads/master/json/countries+states+cities.json',
                 $this->dataPath . '/countries+states+cities.json'
             );
 
@@ -100,10 +100,10 @@ class Geo
         $this->firewall->addResponse('Error downloading file', 1);
     }
 
-    public function processDownloadedGeodataFile($download, $trackCounter = null)
+    public function processDownloadedGeodataFile($download, $terminal = null)
     {
-        if (!is_null($trackCounter)) {
-            $this->firewall->trackCounter = $trackCounter;
+        if ($terminal && !is_null($terminal->trackCounter)) {
+            $this->firewall->trackCounter = $terminal->trackCounter;
         }
 
         if ($this->firewall->trackCounter === 0) {
@@ -115,7 +115,7 @@ class Geo
         $this->firewallGeoCountriesStore->deleteStore();
         $this->firewallGeoStatesStore->deleteStore();
         $this->firewallGeoCitiesStore->deleteStore();
-        // return true;
+
         $this->initStores();
 
         //Process Downloaded JSON File
@@ -126,9 +126,15 @@ class Geo
 
             $jsonFile = json_decode($jsonFile, true);
 
+            $totalCountries = count($jsonFile);
+
             $error = false;
 
-            foreach ($jsonFile as $country) {
+            if ($terminal) {
+                $terminal->newProgress($totalCountries, 'Processing...');
+            }
+
+            foreach ($jsonFile as $countryCount => $country) {
                 $countryEntry = $this->firewallGeoCountriesStore->updateOrInsert(
                     [
                         'id'            => $country['id'],
@@ -138,6 +144,10 @@ class Geo
                 );
 
                 if ($countryEntry) {
+                    if ($terminal && $terminal->getProgress()) {
+                        $terminal->updateProgress('Processing country ' . $country['name'] . '... (' . ($countryCount + 1) . '/' . $totalCountries . ')');
+                    }
+
                     foreach ($country['states'] as $state) {
                         $stateEntry = $this->firewallGeoStatesStore->updateOrInsert(
                             [
@@ -185,6 +195,10 @@ class Geo
 
                     break;
                 }
+            }
+
+            if ($terminal && $terminal->getProgress()) {
+                $terminal->finishProgress();
             }
 
             $this->firewall->setLocalContent();
