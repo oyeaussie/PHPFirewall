@@ -259,7 +259,7 @@ class FirewallTest extends \Codeception\Test\Unit
 
         $this->firewall->initStores();
 
-        $newFilter = $this->firewall->addFilter(
+        $newFilter = $this->firewall->filters->addFilter(
             [
                 'filter_type'       => 'block',
                 'address_type'      => 'host',
@@ -269,7 +269,7 @@ class FirewallTest extends \Codeception\Test\Unit
         $this->assertIsArray($newFilter);
         $this->assertEquals($newFilter['address'], '8.8.8.9');
 
-        $newFilter = $this->firewall->addFilter(
+        $newFilter = $this->firewall->filters->addFilter(
             [
                 'filter_type'       => 'block',
                 'address_type'      => 'host',
@@ -278,7 +278,7 @@ class FirewallTest extends \Codeception\Test\Unit
         );
         $this->assertFalse($newFilter);
 
-        $newFilter = $this->firewall->addFilter(
+        $newFilter = $this->firewall->filters->addFilter(
             [
                 'filter_type'       => 'block',
                 'address_type'      => 'network',
@@ -291,7 +291,7 @@ class FirewallTest extends \Codeception\Test\Unit
         $this->firewall->setConfigIp2locationKey($this->getModule('\Helper\Phpfirewall')->getKeys()['key']);
         $this->firewall->setConfigIp2locationIoKey($this->getModule('\Helper\Phpfirewall')->getKeys()['io_key']);
 
-        $newFilter = $this->firewall->addFilter(
+        $newFilter = $this->firewall->filters->addFilter(
             [
                 'filter_type'       => 'allow',
                 'address_type'      => 'ip2location',
@@ -301,7 +301,7 @@ class FirewallTest extends \Codeception\Test\Unit
         $this->assertIsArray($newFilter);
         $this->assertEquals($newFilter['address'], 'au:victoria:melbourne');
 
-        $newFilter = $this->firewall->addFilter(
+        $newFilter = $this->firewall->filters->addFilter(
             [
                 'filter_type'       => 'allow',
                 'address_type'      => 'ip2location',
@@ -313,7 +313,7 @@ class FirewallTest extends \Codeception\Test\Unit
         $this->assertEquals($newFilter['address'], 'au:new south wales');
         $this->assertEquals($newFilter['ip2location_proxy'], 'block');
 
-        $newFilter = $this->firewall->addFilter(
+        $newFilter = $this->firewall->filters->addFilter(
             [
                 'filter_type'       => 'block',
                 'address_type'      => 'ip2location',

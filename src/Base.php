@@ -42,11 +42,11 @@ abstract class Base
 
     public $systemLogger;
 
-    protected $firewallConfigStore;
+    public $firewallConfigStore;
 
-    protected $firewallFiltersStore;
+    public $firewallFiltersStore;
 
-    protected $firewallFiltersDefaultStore;
+    public $firewallFiltersDefaultStore;
 
     public function __construct($createRoot = false, $dataPath = null)
     {
