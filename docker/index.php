@@ -18,7 +18,7 @@ if (!isset($_GET['ip'])) {
 
         $response['details'] = $firewall->response->getAllData();
 
-        $response['lookup_details'] = $firewall->getProcessedMicroTimers();
+        $response['lookup_details'] = $firewall->profiling->getProcessedMicroTimers();
     } catch (\throwable $e) {
         $response['code'] = 1;
 
