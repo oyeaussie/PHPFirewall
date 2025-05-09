@@ -332,11 +332,11 @@ class FirewallTest extends \Codeception\Test\Unit
         $ip = '8.8.8.9';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('host database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('host database', $this->firewall->profiling->getProcessedMicroTimers());
         $ip = '8.8.8.9';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers());
     }
 
     /**
@@ -347,16 +347,16 @@ class FirewallTest extends \Codeception\Test\Unit
         $ip = '10.10.10.1';
         $check = $this->firewall->checkIp($ip);
         $this->assertTrue($check);
-        $this->assertStringContainsString('default database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('default database', $this->firewall->profiling->getProcessedMicroTimers());
         $this->firewall->setConfigDefaultFilter('block');
         $ip = '10.10.10.1';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('default database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('default database', $this->firewall->profiling->getProcessedMicroTimers());
         $ip = '10.10.10.1';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers());
     }
 
     /**
@@ -367,11 +367,11 @@ class FirewallTest extends \Codeception\Test\Unit
         $ip = '10.100.100.10';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('network database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('network database', $this->firewall->profiling->getProcessedMicroTimers());
         $ip = '10.100.100.10';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers());
     }
 
     /**
@@ -382,38 +382,38 @@ class FirewallTest extends \Codeception\Test\Unit
         $ip = '144.48.38.173';
         $check = $this->firewall->checkIp($ip);
         $this->assertTrue($check);
-        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers());
         $ip = '144.48.38.173';
         $check = $this->firewall->checkIp($ip);
         $this->assertTrue($check);
-        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers());
 
         $ip = '86.48.8.224';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers());
         $ip = '86.48.8.224';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers());
 
         $ip = '43.255.45.131';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers());
         $ip = '43.255.45.131';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers());
 
         $ip = '116.90.72.78';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('ip2locationAPI database', $this->firewall->profiling->getProcessedMicroTimers());
         $ip = '116.90.72.78';
         $check = $this->firewall->checkIp($ip);
         $this->assertFalse($check);
-        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers($ip));
+        $this->assertStringContainsString('indexes', $this->firewall->profiling->getProcessedMicroTimers());
     }
 
     /**
